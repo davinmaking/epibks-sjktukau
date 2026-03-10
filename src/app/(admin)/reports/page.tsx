@@ -4,6 +4,7 @@ import { useEffect, useState, useMemo, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { CLASS_NAMES, CLASS_YEAR_MAP } from "@/lib/constants";
 import type { Tables } from "@/lib/types";
+import { formatDateShort } from "@/lib/utils";
 import {
   Select,
   SelectContent,
@@ -19,15 +20,6 @@ type Event = Tables<"events">;
 type Student = Tables<"students">;
 type FamilyAttendance = Tables<"family_attendance">;
 type StudentAttendance = Tables<"student_attendance">;
-
-function formatDate(dateStr: string): string {
-  const date = new Date(dateStr + "T00:00:00");
-  return date.toLocaleDateString("zh-CN", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
-}
 
 function rateString(checked: number, total: number): string {
   if (total === 0) return "0/0 (0%)";
@@ -52,6 +44,13 @@ function rateCellColor(checked: number, total: number): string {
   if (pct >= 75) return "text-green-700 dark:text-green-400";
   if (pct >= 50) return "text-yellow-700 dark:text-yellow-400";
   return "text-red-700 dark:text-red-400";
+}
+
+function rateLabel(checked: number, total: number): string {
+  const pct = ratePercent(checked, total);
+  if (pct >= 75) return "良好";
+  if (pct >= 50) return "一般";
+  return "需关注";
 }
 
 export default function ReportsPage() {
@@ -140,46 +139,52 @@ export default function ReportsPage() {
     setLoadingAllEvents(true);
     const supabase = createClient();
 
-    // Get last 10 events
     const recentEvents = events.slice(0, 10);
+    const eventIds = recentEvents.map((e) => e.id);
 
-    // Get all students for total counts
-    const { data: allStudents } = await supabase.from("students").select("*");
-    const studentList = allStudents ?? [];
+    // Batch: fetch students + all attendance in 3 queries (not N+1)
+    const [studentsRes, familyAttRes, studentAttRes] = await Promise.all([
+      supabase.from("students").select("*"),
+      supabase
+        .from("family_attendance")
+        .select("event_id, family_id")
+        .in("event_id", eventIds),
+      supabase
+        .from("student_attendance")
+        .select("event_id, student_id")
+        .in("event_id", eventIds),
+    ]);
+
+    const studentList = studentsRes.data ?? [];
     const totalStudents = studentList.length;
     const totalFamilies = new Set(
       studentList.filter((s) => s.family_id).map((s) => s.family_id)
     ).size;
 
-    const summaries = await Promise.all(
-      recentEvents.map(async (event) => {
-        const [familyRes, studentAttRes] = await Promise.all([
-          supabase
-            .from("family_attendance")
-            .select("family_id")
-            .eq("event_id", event.id),
-          supabase
-            .from("student_attendance")
-            .select("student_id")
-            .eq("event_id", event.id),
-        ]);
+    // Group attendance by event_id
+    const familyByEvent = new Map<string, Set<string>>();
+    for (const fa of familyAttRes.data ?? []) {
+      if (!familyByEvent.has(fa.event_id)) {
+        familyByEvent.set(fa.event_id, new Set());
+      }
+      familyByEvent.get(fa.event_id)!.add(fa.family_id);
+    }
 
-        const familyChecked = new Set(
-          (familyRes.data ?? []).map((r) => r.family_id)
-        ).size;
-        const studentChecked = new Set(
-          (studentAttRes.data ?? []).map((r) => r.student_id)
-        ).size;
+    const studentByEvent = new Map<string, Set<string>>();
+    for (const sa of studentAttRes.data ?? []) {
+      if (!studentByEvent.has(sa.event_id)) {
+        studentByEvent.set(sa.event_id, new Set());
+      }
+      studentByEvent.get(sa.event_id)!.add(sa.student_id);
+    }
 
-        return {
-          event,
-          familyChecked,
-          familyTotal: totalFamilies,
-          studentChecked,
-          studentTotal: totalStudents,
-        };
-      })
-    );
+    const summaries = recentEvents.map((event) => ({
+      event,
+      familyChecked: familyByEvent.get(event.id)?.size ?? 0,
+      familyTotal: totalFamilies,
+      studentChecked: studentByEvent.get(event.id)?.size ?? 0,
+      studentTotal: totalStudents,
+    }));
 
     setAllEventsData(summaries);
     setLoadingAllEvents(false);
@@ -264,6 +269,45 @@ export default function ReportsPage() {
     });
   }, [selectedEvent, students, familyAttendance, studentAttendance]);
 
+  // CSV export for class-level report
+  function handleExportCSV() {
+    if (!selectedEvent || classStats.length === 0) return;
+
+    const headers = ["班级"];
+    if (showFamily) headers.push("家庭已签到", "家庭总数", "家庭出席率");
+    if (showStudent) headers.push("学生已签到", "学生总数", "学生出席率");
+
+    const rows = classStats.map((row) => {
+      const cells: string[] = [row.className];
+      if (showFamily) {
+        cells.push(
+          String(row.checkedFamilies),
+          String(row.totalFamilies),
+          `${ratePercent(row.checkedFamilies, row.totalFamilies)}%`
+        );
+      }
+      if (showStudent) {
+        cells.push(
+          String(row.checkedStudents),
+          String(row.totalStudents),
+          `${ratePercent(row.checkedStudents, row.totalStudents)}%`
+        );
+      }
+      return cells;
+    });
+
+    // BOM for Excel Chinese support
+    const csv =
+      "\uFEFF" + [headers, ...rows].map((r) => r.join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${selectedEvent.name}-按班级报告.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   if (loadingEvents) {
     return (
       <div className="flex h-64 items-center justify-center">
@@ -292,9 +336,12 @@ export default function ReportsPage() {
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-bold">报告</h1>
-        <Button disabled title="即将推出">
+        <Button
+          onClick={handleExportCSV}
+          disabled={!selectedEvent || classStats.length === 0}
+        >
           <FileDown className="size-4" />
-          导出
+          导出 CSV
         </Button>
       </div>
 
@@ -311,7 +358,7 @@ export default function ReportsPage() {
           <SelectContent>
             {events.map((event) => (
               <SelectItem key={event.id} value={event.id}>
-                {event.name} ({formatDate(event.date)})
+                {event.name} ({formatDateShort(event.date)})
               </SelectItem>
             ))}
           </SelectContent>
@@ -346,20 +393,20 @@ export default function ReportsPage() {
           ) : (
             <div className="overflow-x-auto rounded-lg border">
               <table className="w-full text-sm">
+                <caption className="sr-only">各班级出席率报告</caption>
                 <thead>
                   <tr className="border-b bg-muted/50">
-                    <th className="px-4 py-3 text-left font-medium">班级</th>
+                    <th scope="col" className="px-4 py-3 text-left font-medium">班级</th>
                     {showFamily && (
-                      <th className="px-4 py-3 text-left font-medium">家庭出席率</th>
+                      <th scope="col" className="px-4 py-3 text-left font-medium">家庭出席率</th>
                     )}
                     {showStudent && (
-                      <th className="px-4 py-3 text-left font-medium">学生出席率</th>
+                      <th scope="col" className="px-4 py-3 text-left font-medium">学生出席率</th>
                     )}
                   </tr>
                 </thead>
                 <tbody>
                   {classStats.map((row) => {
-                    // Determine row color based on the primary tracked metric
                     const primaryChecked = showFamily
                       ? row.checkedFamilies
                       : row.checkedStudents;
@@ -377,14 +424,20 @@ export default function ReportsPage() {
                           <td
                             className={`px-4 py-2.5 font-mono ${rateCellColor(row.checkedFamilies, row.totalFamilies)}`}
                           >
-                            {rateString(row.checkedFamilies, row.totalFamilies)}
+                            {rateString(row.checkedFamilies, row.totalFamilies)}{" "}
+                            <span className="font-sans text-xs">
+                              {rateLabel(row.checkedFamilies, row.totalFamilies)}
+                            </span>
                           </td>
                         )}
                         {showStudent && (
                           <td
                             className={`px-4 py-2.5 font-mono ${rateCellColor(row.checkedStudents, row.totalStudents)}`}
                           >
-                            {rateString(row.checkedStudents, row.totalStudents)}
+                            {rateString(row.checkedStudents, row.totalStudents)}{" "}
+                            <span className="font-sans text-xs">
+                              {rateLabel(row.checkedStudents, row.totalStudents)}
+                            </span>
                           </td>
                         )}
                       </tr>
@@ -429,14 +482,15 @@ export default function ReportsPage() {
           ) : (
             <div className="overflow-x-auto rounded-lg border">
               <table className="w-full text-sm">
+                <caption className="sr-only">各年级出席率报告</caption>
                 <thead>
                   <tr className="border-b bg-muted/50">
-                    <th className="px-4 py-3 text-left font-medium">年级</th>
+                    <th scope="col" className="px-4 py-3 text-left font-medium">年级</th>
                     {showFamily && (
-                      <th className="px-4 py-3 text-left font-medium">家庭出席率</th>
+                      <th scope="col" className="px-4 py-3 text-left font-medium">家庭出席率</th>
                     )}
                     {showStudent && (
-                      <th className="px-4 py-3 text-left font-medium">学生出席率</th>
+                      <th scope="col" className="px-4 py-3 text-left font-medium">学生出席率</th>
                     )}
                   </tr>
                 </thead>
@@ -459,14 +513,20 @@ export default function ReportsPage() {
                           <td
                             className={`px-4 py-2.5 font-mono ${rateCellColor(row.checkedFamilies, row.totalFamilies)}`}
                           >
-                            {rateString(row.checkedFamilies, row.totalFamilies)}
+                            {rateString(row.checkedFamilies, row.totalFamilies)}{" "}
+                            <span className="font-sans text-xs">
+                              {rateLabel(row.checkedFamilies, row.totalFamilies)}
+                            </span>
                           </td>
                         )}
                         {showStudent && (
                           <td
                             className={`px-4 py-2.5 font-mono ${rateCellColor(row.checkedStudents, row.totalStudents)}`}
                           >
-                            {rateString(row.checkedStudents, row.totalStudents)}
+                            {rateString(row.checkedStudents, row.totalStudents)}{" "}
+                            <span className="font-sans text-xs">
+                              {rateLabel(row.checkedStudents, row.totalStudents)}
+                            </span>
                           </td>
                         )}
                       </tr>
@@ -511,12 +571,13 @@ export default function ReportsPage() {
           ) : (
             <div className="overflow-x-auto rounded-lg border">
               <table className="w-full text-sm">
+                <caption className="sr-only">所有活动出席率汇总</caption>
                 <thead>
                   <tr className="border-b bg-muted/50">
-                    <th className="px-4 py-3 text-left font-medium">日期</th>
-                    <th className="px-4 py-3 text-left font-medium">活动名称</th>
-                    <th className="px-4 py-3 text-left font-medium">家庭出席率</th>
-                    <th className="px-4 py-3 text-left font-medium">学生出席率</th>
+                    <th scope="col" className="px-4 py-3 text-left font-medium">日期</th>
+                    <th scope="col" className="px-4 py-3 text-left font-medium">活动名称</th>
+                    <th scope="col" className="px-4 py-3 text-left font-medium">家庭出席率</th>
+                    <th scope="col" className="px-4 py-3 text-left font-medium">学生出席率</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -524,7 +585,7 @@ export default function ReportsPage() {
                     ({ event, familyChecked, familyTotal, studentChecked, studentTotal }) => (
                       <tr key={event.id} className="border-b">
                         <td className="whitespace-nowrap px-4 py-2.5 text-muted-foreground">
-                          {formatDate(event.date)}
+                          {formatDateShort(event.date)}
                         </td>
                         <td className="px-4 py-2.5 font-medium">{event.name}</td>
                         <td
@@ -534,9 +595,16 @@ export default function ReportsPage() {
                               : "text-muted-foreground"
                           }`}
                         >
-                          {event.track_family
-                            ? rateString(familyChecked, familyTotal)
-                            : "-"}
+                          {event.track_family ? (
+                            <>
+                              {rateString(familyChecked, familyTotal)}{" "}
+                              <span className="font-sans text-xs">
+                                {rateLabel(familyChecked, familyTotal)}
+                              </span>
+                            </>
+                          ) : (
+                            "-"
+                          )}
                         </td>
                         <td
                           className={`px-4 py-2.5 font-mono ${
@@ -545,9 +613,16 @@ export default function ReportsPage() {
                               : "text-muted-foreground"
                           }`}
                         >
-                          {event.track_student
-                            ? rateString(studentChecked, studentTotal)
-                            : "-"}
+                          {event.track_student ? (
+                            <>
+                              {rateString(studentChecked, studentTotal)}{" "}
+                              <span className="font-sans text-xs">
+                                {rateLabel(studentChecked, studentTotal)}
+                              </span>
+                            </>
+                          ) : (
+                            "-"
+                          )}
                         </td>
                       </tr>
                     )

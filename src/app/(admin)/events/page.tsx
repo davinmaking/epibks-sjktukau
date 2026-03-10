@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, Plus, CalendarDays, Users, GraduationCap } from "lucide-react";
 import Link from "next/link";
 import type { Tables } from "@/lib/types";
+import { formatDateWithWeekday } from "@/lib/utils";
 
 type Event = Tables<"events">;
 
@@ -20,16 +21,6 @@ const STATUS_CONFIG: Record<
   ongoing: { label: "进行中", variant: "secondary" },
   completed: { label: "已结束", variant: "outline" },
 };
-
-function formatDate(dateStr: string): string {
-  const date = new Date(dateStr + "T00:00:00");
-  return date.toLocaleDateString("zh-CN", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-    weekday: "long",
-  });
-}
 
 export default function EventsPage() {
   const router = useRouter();
@@ -93,8 +84,16 @@ export default function EventsPage() {
             return (
               <Card
                 key={event.id}
-                className="cursor-pointer transition-shadow hover:shadow-md"
+                className="cursor-pointer transition-shadow hover:shadow-md focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                role="button"
+                tabIndex={0}
                 onClick={() => router.push(`/events/${event.id}`)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    router.push(`/events/${event.id}`);
+                  }
+                }}
               >
                 <CardHeader className="pb-2">
                   <div className="flex items-start justify-between gap-2">
@@ -109,7 +108,7 @@ export default function EventsPage() {
                 <CardContent className="space-y-3">
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <CalendarDays className="size-4 shrink-0" />
-                    <span>{formatDate(event.date)}</span>
+                    <span>{formatDateWithWeekday(event.date)}</span>
                   </div>
                   <div className="flex gap-2">
                     {event.track_family && (

@@ -160,6 +160,7 @@ export default function MyClassPage() {
         <Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
         <Input
           placeholder="搜索学生姓名..."
+          aria-label="搜索学生姓名"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="pl-9"
@@ -182,8 +183,17 @@ export default function MyClassPage() {
             return (
               <Card
                 key={student.id}
-                className="cursor-pointer transition-colors hover:bg-muted/30"
+                className="cursor-pointer transition-colors hover:bg-muted/30 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                role="button"
+                tabIndex={0}
+                aria-expanded={isExpanded}
                 onClick={() => toggleExpand(student.id)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    toggleExpand(student.id);
+                  }
+                }}
               >
                 <CardHeader>
                   <div className="flex items-center justify-between">

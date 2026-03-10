@@ -36,10 +36,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [teacher, setTeacher] = useState<Teacher | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
-  const supabase = createClient();
 
   useEffect(() => {
     async function loadUserAndTeacher() {
+      const supabase = createClient();
       try {
         const {
           data: { user: authUser },
@@ -67,10 +67,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     loadUserAndTeacher();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [router]);
 
   async function signOut() {
+    const supabase = createClient();
     await supabase.auth.signOut();
     router.push("/login");
   }

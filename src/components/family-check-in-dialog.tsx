@@ -207,7 +207,7 @@ export function FamilyCheckInDialog({
           <div className="space-y-1.5">
             <label className="text-sm font-medium">出席者类型</label>
             <Select value={attendeeType} onValueChange={(v) => setAttendeeType(v ?? "")}>
-              <SelectTrigger className="w-full">
+              <SelectTrigger className="w-full" autoFocus>
                 <SelectValue placeholder="选择出席者类型" />
               </SelectTrigger>
               <SelectContent>

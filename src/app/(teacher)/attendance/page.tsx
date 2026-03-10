@@ -8,17 +8,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Users, CalendarDays } from "lucide-react";
 import type { Tables } from "@/lib/types";
+import { formatDate } from "@/lib/utils";
 
 type Event = Tables<"events">;
-
-function formatDate(dateStr: string): string {
-  const date = new Date(dateStr + "T00:00:00");
-  return date.toLocaleDateString("zh-CN", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
-}
 
 interface EventWithRate extends Event {
   checkedIn: number;

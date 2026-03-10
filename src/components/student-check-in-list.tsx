@@ -92,6 +92,7 @@ export function StudentCheckInList({
         <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
         <Input
           placeholder="搜索学生姓名..."
+          aria-label="搜索学生姓名"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="pl-9"

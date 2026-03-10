@@ -28,9 +28,18 @@ export default function NewEventPage() {
     const newErrors: Record<string, string> = {};
     if (!name.trim()) {
       newErrors.name = "请输入活动名称";
+    } else if (name.trim().length > 100) {
+      newErrors.name = "活动名称不能超过100个字符";
     }
     if (!date) {
       newErrors.date = "请选择日期";
+    } else {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const selected = new Date(date + "T00:00:00");
+      if (selected < today) {
+        newErrors.date = "日期不能是过去的日期";
+      }
     }
     if (!trackFamily && !trackStudent) {
       newErrors.tracking = "至少选择一种追踪模式";
@@ -91,6 +100,7 @@ export default function NewEventPage() {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="例：2026年第一学期家长日"
+                maxLength={100}
               />
               {errors.name && (
                 <p className="text-sm text-destructive">{errors.name}</p>

@@ -270,6 +270,7 @@ export default function TeacherCheckInPage() {
                 <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   placeholder="搜索家长姓名..."
+                  aria-label="搜索家长姓名"
                   value={familySearch}
                   onChange={(e) => setFamilySearch(e.target.value)}
                   className="pl-9"

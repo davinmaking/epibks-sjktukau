@@ -41,6 +41,26 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
+  // Role-based route protection: non-admin users cannot access admin routes
+  const adminRoutes = ["/dashboard", "/events", "/reports", "/users"];
+  const isAdminRoute = adminRoutes.some((r) =>
+    request.nextUrl.pathname.startsWith(r)
+  );
+
+  if (user && isAdminRoute) {
+    const { data: teacher } = await supabase
+      .from("teachers")
+      .select("role")
+      .eq("id", user.id)
+      .single();
+
+    if (teacher?.role !== "admin") {
+      const url = request.nextUrl.clone();
+      url.pathname = "/my-class";
+      return NextResponse.redirect(url);
+    }
+  }
+
   return supabaseResponse;
 }
 

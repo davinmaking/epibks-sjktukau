@@ -95,12 +95,27 @@ function mapRelationship(value: unknown): string | null {
     "DATUK": "祖父",
     "NENEK": "祖母",
     "PENJAGA": "监护人",
+    "ABANG": "兄长",
+    "KAKAK": "姐姐",
+    "ADIK": "弟妹",
+    "BAPA SAUDARA": "叔伯",
+    "IBU SAUDARA": "姑姨",
+    "SAUDARA": "亲属",
+    "LAIN-LAIN": "其他",
   };
   return map[str] || str;
 }
 
-// Header row index in the spreadsheet
-const HEADER_ROW_INDEX = 5;
+/** Dynamically find the header row by searching for a row containing "BIL" */
+function findHeaderRowIndex(rows: unknown[][]): number {
+  for (let i = 0; i < Math.min(rows.length, 15); i++) {
+    const row = rows[i];
+    if (row && row.length > 0 && String(row[0]).trim().toUpperCase() === "BIL") {
+      return i;
+    }
+  }
+  return -1;
+}
 
 export async function POST(request: Request) {
   try {
@@ -149,16 +164,17 @@ export async function POST(request: Request) {
       header: 1,
     }) as unknown[][];
 
-    // Find header row and data rows
-    const headerRow = allRows[HEADER_ROW_INDEX];
-    if (!headerRow || !String(headerRow[0]).includes("BIL")) {
+    // Find header row dynamically instead of hardcoded index
+    const headerRowIndex = findHeaderRowIndex(allRows);
+    if (headerRowIndex === -1) {
       return NextResponse.json(
-        { error: "无法识别表格格式，请确认是APDM导出的学生名单" },
+        { error: "无法识别表格格式，未找到表头行（BIL列），请确认是APDM导出的学生名单" },
         { status: 400 }
       );
     }
+    const headerRow = allRows[headerRowIndex];
 
-    const dataRows = allRows.slice(HEADER_ROW_INDEX + 1).filter((row) => {
+    const dataRows = allRows.slice(headerRowIndex + 1).filter((row) => {
       // Skip empty rows - check BIL column has a number
       const bil = row[COL.BIL];
       return bil != null && !isNaN(Number(bil));
@@ -185,7 +201,7 @@ export async function POST(request: Request) {
 
     for (let i = 0; i < dataRows.length; i++) {
       const row = dataRows[i];
-      const rowNum = i + HEADER_ROW_INDEX + 2; // 1-based row in Excel (header + 1-indexed)
+      const rowNum = i + headerRowIndex + 2; // 1-based row in Excel (header + 1-indexed)
       const studentName = toStr(row[COL.NAMA]) || `第${rowNum}行`;
 
       try {

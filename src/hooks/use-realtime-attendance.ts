@@ -94,6 +94,21 @@ export function useRealtimeAttendance(
       .on(
         "postgres_changes",
         {
+          event: "UPDATE",
+          schema: "public",
+          table: "family_attendance",
+          filter: `event_id=eq.${eventId}`,
+        },
+        (payload) => {
+          const updated = payload.new as FamilyAttendance;
+          setFamilyAttendance((prev) =>
+            prev.map((item) => (item.id === updated.id ? updated : item))
+          );
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
           event: "INSERT",
           schema: "public",
           table: "student_attendance",
@@ -116,6 +131,21 @@ export function useRealtimeAttendance(
           const deletedId = (payload.old as { id: string }).id;
           setStudentAttendance((prev) =>
             prev.filter((item) => item.id !== deletedId)
+          );
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "student_attendance",
+          filter: `event_id=eq.${eventId}`,
+        },
+        (payload) => {
+          const updated = payload.new as StudentAttendance;
+          setStudentAttendance((prev) =>
+            prev.map((item) => (item.id === updated.id ? updated : item))
           );
         }
       )

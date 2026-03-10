@@ -21,6 +21,7 @@ import { Separator } from "@/components/ui/separator";
 import { ArrowLeft, CalendarDays, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import type { Tables } from "@/lib/types";
+import { formatDateWithWeekday } from "@/lib/utils";
 
 type Event = Tables<"events">;
 
@@ -38,16 +39,6 @@ const STATUS_BADGE_VARIANT: Record<
   ongoing: "secondary",
   completed: "outline",
 };
-
-function formatDate(dateStr: string): string {
-  const date = new Date(dateStr + "T00:00:00");
-  return date.toLocaleDateString("zh-CN", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-    weekday: "long",
-  });
-}
 
 export default function EventDetailPage() {
   const params = useParams();
@@ -146,7 +137,7 @@ export default function EventDetailPage() {
           <h1 className="text-2xl font-bold">{event.name}</h1>
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <CalendarDays className="size-4 shrink-0" />
-            <span>{formatDate(event.date)}</span>
+            <span>{formatDateWithWeekday(event.date)}</span>
           </div>
           {event.description && (
             <p className="text-sm text-muted-foreground">{event.description}</p>

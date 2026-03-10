@@ -26,6 +26,7 @@ import {
   Loader2,
 } from "lucide-react";
 import type { Tables } from "@/lib/types";
+import { formatDate } from "@/lib/utils";
 
 type Event = Tables<"events">;
 
@@ -42,15 +43,6 @@ interface RecentEventWithStats {
   totalFamilies: number;
   studentCheckedIn: number;
   totalStudents: number;
-}
-
-function formatDate(dateStr: string): string {
-  const date = new Date(dateStr + "T00:00:00");
-  return date.toLocaleDateString("zh-CN", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
 }
 
 export default function DashboardPage() {
@@ -336,7 +328,7 @@ export default function DashboardPage() {
       {/* Section 2: Quick Stats */}
       <section className="space-y-4">
         <h2 className="text-lg font-semibold">数据概览</h2>
-        <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
           <Card>
             <CardHeader className="pb-1">
               <CardTitle className="text-sm font-medium text-muted-foreground">

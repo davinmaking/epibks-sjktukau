@@ -142,7 +142,7 @@ export function NavSidebar({ role }: NavSidebarProps) {
             <Menu className="size-5" />
             <span className="sr-only">打开菜单</span>
           </SheetTrigger>
-          <SheetContent side="left" className="w-64 p-0">
+          <SheetContent side="left" className="w-[min(16rem,85vw)] p-0">
             <SheetHeader className="sr-only">
               <SheetTitle>导航菜单</SheetTitle>
             </SheetHeader>
