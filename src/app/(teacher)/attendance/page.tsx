@@ -22,6 +22,7 @@ export default function TeacherAttendancePage() {
   const router = useRouter();
   const [events, setEvents] = useState<EventWithRate[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
     if (!teacher?.class_name) {
@@ -40,6 +41,7 @@ export default function TeacherAttendancePage() {
 
       if (eventsError || !eventsData) {
         console.error("Failed to fetch events:", eventsError);
+        setError(true);
         setLoading(false);
         return;
       }
@@ -57,22 +59,25 @@ export default function TeacherAttendancePage() {
       );
       const totalFamilies = uniqueFamilyIds.size;
 
-      // For each event, get the check-in count for this class
-      const eventsWithRates: EventWithRate[] = await Promise.all(
-        eventsData.map(async (event) => {
-          const { count } = await supabase
-            .from("family_attendance")
-            .select("*", { count: "exact", head: true })
-            .eq("event_id", event.id)
-            .eq("class_name", teacher!.class_name!);
+      // Batch fetch all attendance for this class in a single query
+      const eventIds = eventsData.map((e) => e.id);
+      const { data: attendanceData } = await supabase
+        .from("family_attendance")
+        .select("event_id")
+        .in("event_id", eventIds)
+        .eq("class_name", teacher!.class_name!);
 
-          return {
-            ...event,
-            checkedIn: count ?? 0,
-            totalFamilies,
-          };
-        })
-      );
+      // Count per event client-side
+      const countByEvent = new Map<string, number>();
+      for (const record of attendanceData ?? []) {
+        countByEvent.set(record.event_id, (countByEvent.get(record.event_id) ?? 0) + 1);
+      }
+
+      const eventsWithRates: EventWithRate[] = eventsData.map((event) => ({
+        ...event,
+        checkedIn: countByEvent.get(event.id) ?? 0,
+        totalFamilies,
+      }));
 
       setEvents(eventsWithRates);
       setLoading(false);
@@ -107,7 +112,12 @@ export default function TeacherAttendancePage() {
         </p>
       </div>
 
-      {events.length === 0 ? (
+      {error ? (
+        <div className="flex h-48 flex-col items-center justify-center gap-2 rounded-lg border border-dashed text-destructive">
+          <CalendarDays className="size-10" />
+          <p>加载活动失败，请刷新重试</p>
+        </div>
+      ) : events.length === 0 ? (
         <div className="flex h-48 flex-col items-center justify-center gap-2 rounded-lg border border-dashed text-muted-foreground">
           <CalendarDays className="size-10" />
           <p>暂无活动</p>

@@ -22,6 +22,7 @@ import {
   Clock,
   UserCheck,
   Undo2,
+  Filter,
 } from "lucide-react";
 import { toast } from "sonner";
 import type { Tables } from "@/lib/types";
@@ -64,8 +65,9 @@ export default function TeacherCheckInPage() {
   const [checkInFamily, setCheckInFamily] = useState<Family | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  // Search
+  // Search & filter
   const [familySearch, setFamilySearch] = useState("");
+  const [showUncheckedOnly, setShowUncheckedOnly] = useState(false);
 
   // Undo family check-in
   const [undoingFamilyIds, setUndoingFamilyIds] = useState<Set<string>>(new Set());
@@ -209,20 +211,41 @@ export default function TeacherCheckInPage() {
     refetchAttendance();
   }
 
-  // Filtered families by search
+  // Filtered & sorted families: unchecked first, search by name/IC
   const filteredFamilies = useMemo(() => {
-    if (!familySearch.trim()) return familiesWithStudents;
-    const query = familySearch.toLowerCase();
-    return familiesWithStudents.filter(({ family, students: childList }) => {
-      const guardianMatch =
-        family.guardian1_name.toLowerCase().includes(query) ||
-        (family.guardian2_name?.toLowerCase().includes(query) ?? false);
-      const studentMatch = childList.some((s) =>
-        s.name.toLowerCase().includes(query)
-      );
-      return guardianMatch || studentMatch;
+    let result = familiesWithStudents;
+
+    // Filter: unchecked only
+    if (showUncheckedOnly) {
+      result = result.filter(({ family }) => !familyAttendanceMap.has(family.id));
+    }
+
+    // Search by guardian name, student name, or IC
+    if (familySearch.trim()) {
+      const query = familySearch.toLowerCase();
+      result = result.filter(({ family, students: childList }) => {
+        const guardianMatch =
+          family.guardian1_name.toLowerCase().includes(query) ||
+          (family.guardian2_name?.toLowerCase().includes(query) ?? false);
+        const icMatch =
+          family.guardian1_ic?.toLowerCase().includes(query) ||
+          (family.guardian2_ic?.toLowerCase().includes(query) ?? false);
+        const studentMatch = childList.some((s) =>
+          s.name.toLowerCase().includes(query)
+        );
+        return guardianMatch || icMatch || studentMatch;
+      });
+    }
+
+    // Sort: unchecked families first, checked-in at bottom
+    result = [...result].sort((a, b) => {
+      const aChecked = familyAttendanceMap.has(a.family.id) ? 1 : 0;
+      const bChecked = familyAttendanceMap.has(b.family.id) ? 1 : 0;
+      return aChecked - bChecked;
     });
-  }, [familiesWithStudents, familySearch]);
+
+    return result;
+  }, [familiesWithStudents, familySearch, showUncheckedOnly, familyAttendanceMap]);
 
   // Determine default tab
   const defaultTab = event?.track_family ? "family" : "student";
@@ -236,7 +259,7 @@ export default function TeacherCheckInPage() {
     );
   }
 
-  if (loading) {
+  if (loading || attendanceLoading) {
     return (
       <div className="flex h-64 items-center justify-center">
         <Loader2 className="size-8 animate-spin text-muted-foreground" />
@@ -258,18 +281,23 @@ export default function TeacherCheckInPage() {
     );
   }
 
+  const uncheckedCount = familiesWithStudents.filter(
+    ({ family }) => !familyAttendanceMap.has(family.id)
+  ).length;
+
   return (
-    <div className="space-y-6">
+    <div className="touch-manipulation space-y-6">
       {/* Header */}
       <div className="flex items-center gap-2">
         <Button
           variant="ghost"
           size="icon"
+          className="min-h-[44px] min-w-[44px]"
           onClick={() => router.push("/attendance")}
         >
-          <ArrowLeft className="size-4" />
+          <ArrowLeft className="size-5" />
         </Button>
-        <div>
+        <div className="min-w-0 flex-1">
           <h1 className="text-xl font-bold">{event.name}</h1>
           <p className="text-sm text-muted-foreground">
             {teacher.class_name} 班
@@ -277,94 +305,124 @@ export default function TeacherCheckInPage() {
         </div>
       </div>
 
-      {attendanceLoading ? (
-        <div className="flex h-32 items-center justify-center">
-          <Loader2 className="size-6 animate-spin text-muted-foreground" />
-        </div>
-      ) : (
-        <Tabs defaultValue={defaultTab}>
-          <TabsList>
-            {event.track_family && (
-              <TabsTrigger value="family">
-                <Users className="size-3.5" />
-                家庭签到
-              </TabsTrigger>
-            )}
-            {event.track_student && (
-              <TabsTrigger value="student">
-                <UserCheck className="size-3.5" />
-                学生签到
-              </TabsTrigger>
-            )}
-          </TabsList>
-
-          {/* Family tab */}
+      <Tabs defaultValue={defaultTab}>
+        <TabsList>
           {event.track_family && (
-            <TabsContent value="family" className="space-y-4">
-              {/* Stats card */}
-              <AttendanceStatsCard
-                title="班级家庭出席率"
-                value={`${overallStats.checkedInFamilies}/${overallStats.totalFamilies}`}
-                percentage={Math.round(overallStats.familyRate * 100)}
-                description={`${teacher.class_name} 班已签到家庭数`}
-              />
+            <TabsTrigger value="family" className="min-h-[44px] gap-1.5 px-4">
+              <Users className="size-4" />
+              家庭签到
+            </TabsTrigger>
+          )}
+          {event.track_student && (
+            <TabsTrigger value="student" className="min-h-[44px] gap-1.5 px-4">
+              <UserCheck className="size-4" />
+              学生签到
+            </TabsTrigger>
+          )}
+        </TabsList>
 
-              {/* Search bar */}
-              <div className="relative">
+        {/* Family tab */}
+        {event.track_family && (
+          <TabsContent value="family" className="space-y-4">
+            {/* Stats card */}
+            <AttendanceStatsCard
+              title="班级家庭出席率"
+              value={`${overallStats.checkedInFamilies}/${overallStats.totalFamilies}`}
+              percentage={Math.round(overallStats.familyRate * 100)}
+              description={`${teacher.class_name} 班已签到家庭数`}
+            />
+
+            {/* Search bar + filter toggle */}
+            <div className="flex gap-2">
+              <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
-                  placeholder="搜索家长姓名..."
-                  aria-label="搜索家长姓名"
+                  placeholder="搜索姓名或身份证号码..."
+                  aria-label="搜索家长姓名或身份证号码"
                   value={familySearch}
                   onChange={(e) => setFamilySearch(e.target.value)}
-                  className="pl-9"
+                  className="min-h-[44px] pl-9"
+                  autoComplete="off"
+                  autoCorrect="off"
                 />
               </div>
+              <Button
+                variant={showUncheckedOnly ? "default" : "outline"}
+                size="icon"
+                className="relative min-h-[44px] min-w-[44px]"
+                onClick={() => setShowUncheckedOnly((v) => !v)}
+                aria-label={showUncheckedOnly ? "显示所有家庭" : "只显示未签到"}
+                title={showUncheckedOnly ? "显示所有家庭" : "只显示未签到"}
+              >
+                <Filter className="size-4" />
+                {showUncheckedOnly && uncheckedCount > 0 && (
+                  <span className="absolute -right-1 -top-1 flex size-5 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground">
+                    {uncheckedCount}
+                  </span>
+                )}
+              </Button>
+            </div>
 
-              {/* Family list */}
-              <div className="space-y-2">
-                {filteredFamilies.length === 0 ? (
-                  <div className="flex h-32 items-center justify-center text-sm text-muted-foreground">
-                    无匹配的家庭
-                  </div>
-                ) : (
-                  filteredFamilies.map(({ family, students: children }) => {
-                    const attendance = familyAttendanceMap.get(family.id);
-                    const isCheckedInByMyClass =
-                      attendance?.class_name === teacher.class_name;
-                    const isCheckedInByOther =
-                      attendance && !isCheckedInByMyClass;
-                    const isCheckedIn = !!attendance;
+            {/* Family list */}
+            <div className="space-y-2">
+              {filteredFamilies.length === 0 ? (
+                <div className="flex h-32 flex-col items-center justify-center gap-2 text-sm text-muted-foreground">
+                  <CheckCircle2 className="size-8" />
+                  {showUncheckedOnly ? "所有家庭已签到" : "无匹配的家庭"}
+                </div>
+              ) : (
+                filteredFamilies.map(({ family, students: children }) => {
+                  const attendance = familyAttendanceMap.get(family.id);
+                  const isCheckedInByMyClass =
+                    attendance?.class_name === teacher.class_name;
+                  const isCheckedInByOther =
+                    attendance && !isCheckedInByMyClass;
+                  const isCheckedIn = !!attendance;
 
-                    return (
-                      <div
-                        key={family.id}
-                        className="flex items-center justify-between gap-3 rounded-lg border p-3"
-                      >
-                        <div className="min-w-0 flex-1">
-                          <p className="font-medium">
-                            {family.guardian1_name}
-                          </p>
-                          <div className="mt-0.5 flex flex-wrap gap-1">
-                            {children.map((c) => (
-                              <Badge key={c.id} variant="outline" className="text-xs font-normal">
-                                {c.name}
-                              </Badge>
-                            ))}
-                          </div>
+                  return (
+                    <div
+                      key={family.id}
+                      className={`flex min-h-[60px] items-center justify-between gap-3 rounded-lg border p-3 transition-all duration-200 ${
+                        !isCheckedIn
+                          ? "cursor-pointer border-primary/20 bg-background hover:border-primary/40 hover:shadow-sm active:scale-[0.98] active:bg-muted/50"
+                          : isCheckedInByMyClass
+                            ? "border-green-200 bg-green-50/50 opacity-75 dark:border-green-900 dark:bg-green-950/20"
+                            : "opacity-50"
+                      }`}
+                      onClick={
+                        !isCheckedIn
+                          ? () => {
+                              setCheckInFamily(family);
+                              setDialogOpen(true);
+                            }
+                          : undefined
+                      }
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className={`font-medium ${isCheckedIn ? "text-muted-foreground" : ""}`}>
+                          {family.guardian1_name}
+                        </p>
+                        <div className="mt-1 flex flex-wrap gap-1">
+                          {children.map((c) => (
+                            <Badge key={c.id} variant="outline" className="text-xs font-normal">
+                              {c.name}
+                            </Badge>
+                          ))}
                         </div>
+                      </div>
 
-                        <div className="shrink-0">
-                          {isCheckedInByMyClass && (() => {
-                            const labels = getAttendeeLabels(attendance);
-                            return (
-                              <div className="flex flex-col items-end gap-1">
-                                <div className="flex items-center gap-1.5">
-                                  <Badge variant="default" className="gap-1">
+                      <div className="shrink-0">
+                        {isCheckedInByMyClass && (() => {
+                          const labels = getAttendeeLabels(attendance);
+                          return (
+                            <div className="flex flex-col items-end gap-1">
+                              <div className="flex items-center gap-2">
+                                <div className="flex flex-col items-end">
+                                  <Badge variant="default" className="gap-1 bg-green-600 hover:bg-green-600">
                                     <CheckCircle2 className="size-3" />
                                     已签到
                                   </Badge>
-                                  <span className="text-xs text-muted-foreground">
+                                  <span className="mt-0.5 text-[11px] text-muted-foreground">
                                     {new Date(
                                       attendance.checked_in_at
                                     ).toLocaleTimeString("zh-CN", {
@@ -372,87 +430,83 @@ export default function TeacherCheckInPage() {
                                       minute: "2-digit",
                                     })}
                                   </span>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon-xs"
-                                    className="text-muted-foreground hover:text-destructive"
-                                    disabled={undoingFamilyIds.has(family.id)}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleUndoFamilyCheckIn(family.id);
-                                    }}
-                                  >
-                                    {undoingFamilyIds.has(family.id) ? (
-                                      <Loader2 className="size-3 animate-spin" />
-                                    ) : (
-                                      <Undo2 className="size-3" />
-                                    )}
-                                  </Button>
                                 </div>
-                                {labels.length > 0 && (
-                                  <div className="flex flex-wrap justify-end gap-1">
-                                    {labels.map((label) => (
-                                      <Badge key={label} variant="secondary" className="text-xs font-normal">
-                                        {label}
-                                      </Badge>
-                                    ))}
-                                  </div>
-                                )}
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="min-h-[44px] min-w-[44px] text-muted-foreground hover:text-destructive"
+                                  disabled={undoingFamilyIds.has(family.id)}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleUndoFamilyCheckIn(family.id);
+                                  }}
+                                  aria-label="撤回签到"
+                                >
+                                  {undoingFamilyIds.has(family.id) ? (
+                                    <Loader2 className="size-4 animate-spin" />
+                                  ) : (
+                                    <Undo2 className="size-4" />
+                                  )}
+                                </Button>
                               </div>
-                            );
-                          })()}
-                          {isCheckedInByOther && (
-                            <Badge variant="secondary" className="gap-1">
-                              <Clock className="size-3" />
-                              已由 {attendance.class_name} 签到
-                            </Badge>
-                          )}
-                          {!isCheckedIn && (
-                            <Button
-                              size="sm"
-                              onClick={() => {
-                                setCheckInFamily(family);
-                                setDialogOpen(true);
-                              }}
-                            >
-                              签到
-                            </Button>
-                          )}
-                        </div>
+                              {labels.length > 0 && (
+                                <div className="flex flex-wrap justify-end gap-1">
+                                  {labels.map((label) => (
+                                    <Badge key={label} variant="secondary" className="text-xs font-normal">
+                                      {label}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()}
+                        {isCheckedInByOther && (
+                          <Badge variant="secondary" className="gap-1">
+                            <Clock className="size-3" />
+                            已由 {attendance.class_name} 签到
+                          </Badge>
+                        )}
+                        {!isCheckedIn && (
+                          <Badge className="gap-1 bg-primary/10 text-primary hover:bg-primary/10">
+                            <UserCheck className="size-3" />
+                            签到
+                          </Badge>
+                        )}
                       </div>
-                    );
-                  })
-                )}
-              </div>
-            </TabsContent>
-          )}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </TabsContent>
+        )}
 
-          {/* Student tab */}
-          {event.track_student && (
-            <TabsContent value="student" className="space-y-4">
-              {/* Stats card */}
-              <AttendanceStatsCard
-                title="班级学生出席率"
-                value={`${overallStats.checkedInStudents}/${overallStats.totalStudents}`}
-                percentage={Math.round(overallStats.studentRate * 100)}
-                description={`${teacher.class_name} 班已签到学生数`}
-              />
+        {/* Student tab */}
+        {event.track_student && (
+          <TabsContent value="student" className="space-y-4">
+            {/* Stats card */}
+            <AttendanceStatsCard
+              title="班级学生出席率"
+              value={`${overallStats.checkedInStudents}/${overallStats.totalStudents}`}
+              percentage={Math.round(overallStats.studentRate * 100)}
+              description={`${teacher.class_name} 班已签到学生数`}
+            />
 
-              <StudentCheckInList
-                students={classStudents.map((s) => ({
-                  id: s.id,
-                  name: s.name,
-                  class_name: s.class_name,
-                }))}
-                studentAttendance={studentAttendance}
-                eventId={eventId}
-                teacherId={teacher.id}
-                onMutate={refetchAttendance}
-              />
-            </TabsContent>
-          )}
-        </Tabs>
-      )}
+            <StudentCheckInList
+              students={classStudents.map((s) => ({
+                id: s.id,
+                name: s.name,
+                class_name: s.class_name,
+              }))}
+              studentAttendance={studentAttendance}
+              eventId={eventId}
+              teacherId={teacher.id}
+              onMutate={refetchAttendance}
+            />
+          </TabsContent>
+        )}
+      </Tabs>
 
       {/* Family check-in dialog */}
       {checkInFamily && (

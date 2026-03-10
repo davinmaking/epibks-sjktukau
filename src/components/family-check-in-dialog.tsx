@@ -103,37 +103,52 @@ export function FamilyCheckInDialog({
     [family]
   );
 
-  // Reset form when dialog closes
+  // Reset form when dialog closes; pre-select types with stored guardian data when opening
   useEffect(() => {
     if (!open) {
       setSelectedTypes(new Set());
       setAttendeeData(new Map());
       return;
     }
-  }, [open]);
+
+    // Auto-pre-select attendee types that have stored guardian data
+    const preSelected = new Set<string>();
+    const preData = new Map<string, AttendeeFormData>();
+
+    for (const type of ATTENDEE_TYPES) {
+      const autoFill = getAutoFillData(type.value);
+      if (autoFill.name.trim()) {
+        preSelected.add(type.value);
+        preData.set(type.value, autoFill);
+      }
+    }
+
+    if (preSelected.size > 0) {
+      setSelectedTypes(preSelected);
+      setAttendeeData(preData);
+    }
+  }, [open, getAutoFillData]);
 
   function handleToggleType(type: string, checked: boolean) {
-    setSelectedTypes((prev) => {
-      const next = new Set(prev);
-      if (checked) {
-        next.add(type);
-        // Auto-fill data for this type
-        setAttendeeData((prevData) => {
-          const nextData = new Map(prevData);
-          nextData.set(type, getAutoFillData(type));
-          return nextData;
-        });
-      } else {
+    if (checked) {
+      setSelectedTypes((prev) => new Set(prev).add(type));
+      setAttendeeData((prevData) => {
+        const nextData = new Map(prevData);
+        nextData.set(type, getAutoFillData(type));
+        return nextData;
+      });
+    } else {
+      setSelectedTypes((prev) => {
+        const next = new Set(prev);
         next.delete(type);
-        // Remove data for this type
-        setAttendeeData((prevData) => {
-          const nextData = new Map(prevData);
-          nextData.delete(type);
-          return nextData;
-        });
-      }
-      return next;
-    });
+        return next;
+      });
+      setAttendeeData((prevData) => {
+        const nextData = new Map(prevData);
+        nextData.delete(type);
+        return nextData;
+      });
+    }
   }
 
   function updateAttendeeField(type: string, field: keyof AttendeeFormData, value: string) {
@@ -160,8 +175,6 @@ export function FamilyCheckInDialog({
       }
     }
 
-    setSubmitting(true);
-
     // Build attendees array
     const attendees: AttendeeEntry[] = [];
     for (const type of ATTENDEE_TYPES) {
@@ -179,6 +192,10 @@ export function FamilyCheckInDialog({
     // First attendee used for legacy columns
     const first = attendees[0];
 
+    // Close dialog immediately (optimistic) — submit in background
+    onOpenChange(false);
+    toast.success("签到成功");
+
     const supabase = createClient();
     const { error } = await supabase.from("family_attendance").insert({
       event_id: eventId,
@@ -192,8 +209,6 @@ export function FamilyCheckInDialog({
       checked_in_by: teacherId,
     });
 
-    setSubmitting(false);
-
     if (error) {
       if (error.code === "23505") {
         toast.error("该家庭已签到");
@@ -204,8 +219,6 @@ export function FamilyCheckInDialog({
       return;
     }
 
-    toast.success("签到成功");
-    onOpenChange(false);
     onSuccess?.();
   }
 
@@ -219,7 +232,7 @@ export function FamilyCheckInDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 py-2">
+        <div className="touch-manipulation space-y-3 py-2">
           <p className="text-sm font-medium">选择出席者（可多选）</p>
 
           {ATTENDEE_TYPES.map((type) => {
@@ -229,21 +242,33 @@ export function FamilyCheckInDialog({
             return (
               <div key={type.value} className="space-y-2">
                 {/* Checkbox row */}
-                <label className="flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition-colors hover:bg-muted/50">
+                <label
+                  className={`flex min-h-[48px] cursor-pointer items-center gap-3 rounded-lg border p-3 transition-all duration-200 active:scale-[0.98] ${
+                    isSelected
+                      ? "border-primary/30 bg-primary/5"
+                      : "hover:bg-muted/50"
+                  }`}
+                >
                   <Checkbox
                     checked={isSelected}
                     onCheckedChange={(checked) =>
                       handleToggleType(type.value, checked === true)
                     }
+                    className="size-5"
                   />
                   <span className={isSelected ? "font-medium" : ""}>
                     {type.label}
                   </span>
+                  {isSelected && data?.name && (
+                    <span className="ml-auto text-xs text-muted-foreground">
+                      {data.name}
+                    </span>
+                  )}
                 </label>
 
                 {/* Expanded fields when selected */}
                 {isSelected && data && (
-                  <div className="ml-6 space-y-2 border-l-2 pl-4">
+                  <div className="ml-4 space-y-2 border-l-2 border-primary/20 pl-4">
                     <div className="space-y-1">
                       <label className="text-xs font-medium text-muted-foreground">
                         姓名 <span className="text-destructive">*</span>
@@ -254,7 +279,8 @@ export function FamilyCheckInDialog({
                           updateAttendeeField(type.value, "name", e.target.value)
                         }
                         placeholder="出席者姓名"
-                        className="h-8 text-sm"
+                        className="min-h-[40px] text-sm"
+                        autoComplete="off"
                       />
                     </div>
                     <div className="space-y-1">
@@ -267,7 +293,9 @@ export function FamilyCheckInDialog({
                           updateAttendeeField(type.value, "ic", e.target.value)
                         }
                         placeholder="身份证号码（选填）"
-                        className="h-8 text-sm"
+                        className="min-h-[40px] text-sm"
+                        inputMode="numeric"
+                        autoComplete="off"
                       />
                     </div>
                     {type.value === "其他" && (
@@ -281,7 +309,8 @@ export function FamilyCheckInDialog({
                             updateAttendeeField(type.value, "relationship", e.target.value)
                           }
                           placeholder="与学生的关系（选填）"
-                          className="h-8 text-sm"
+                          className="min-h-[40px] text-sm"
+                          autoComplete="off"
                         />
                       </div>
                     )}
@@ -296,11 +325,12 @@ export function FamilyCheckInDialog({
           <Button
             onClick={handleConfirm}
             disabled={submitting || selectedTypes.size === 0}
+            className="min-h-[48px] w-full text-base"
           >
             {submitting && <Loader2 className="size-4 animate-spin" />}
             确认签到
             {selectedTypes.size > 0 && (
-              <span className="ml-1 text-xs opacity-70">
+              <span className="ml-1 text-sm opacity-70">
                 ({selectedTypes.size}人)
               </span>
             )}

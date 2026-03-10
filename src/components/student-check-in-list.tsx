@@ -60,7 +60,7 @@ export function StudentCheckInList({
           .eq("student_id", studentId);
 
         if (error) {
-          console.error("Failed to remove attendance:", error.message, error.code, error.details);
+          console.error("Failed to remove attendance:", error.message);
           toast.error("取消签到失败");
         }
       } else {
@@ -75,7 +75,7 @@ export function StudentCheckInList({
         );
 
         if (error) {
-          console.error("Failed to check in student:", error.message, error.code, error.details);
+          console.error("Failed to check in student:", error.message);
           toast.error("签到失败");
         }
       }
@@ -94,7 +94,7 @@ export function StudentCheckInList({
   );
 
   return (
-    <div className="space-y-3">
+    <div className="touch-manipulation space-y-3">
       {/* Search bar */}
       <div className="relative">
         <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -103,12 +103,14 @@ export function StudentCheckInList({
           aria-label="搜索学生姓名"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="pl-9"
+          className="min-h-[44px] pl-9"
+          autoComplete="off"
+          autoCorrect="off"
         />
       </div>
 
       {/* Student list */}
-      <div className="space-y-1">
+      <div className="space-y-1.5">
         {filteredStudents.length === 0 ? (
           <div className="flex h-32 items-center justify-center text-sm text-muted-foreground">
             无匹配的学生
@@ -121,10 +123,14 @@ export function StudentCheckInList({
             return (
               <label
                 key={student.id}
-                className="flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition-colors hover:bg-muted/50"
+                className={`flex min-h-[48px] cursor-pointer items-center gap-3 rounded-lg border p-3 transition-all duration-200 active:scale-[0.98] ${
+                  isCheckedIn
+                    ? "border-green-200 bg-green-50/50 dark:border-green-900 dark:bg-green-950/20"
+                    : "hover:border-primary/30 hover:shadow-sm"
+                }`}
               >
                 {isLoading ? (
-                  <Loader2 className="size-4 shrink-0 animate-spin text-muted-foreground" />
+                  <Loader2 className="size-5 shrink-0 animate-spin text-muted-foreground" />
                 ) : (
                   <Checkbox
                     checked={isCheckedIn}
@@ -132,6 +138,7 @@ export function StudentCheckInList({
                       handleToggle(student.id, isCheckedIn)
                     }
                     disabled={isLoading}
+                    className="size-5"
                   />
                 )}
                 <span
