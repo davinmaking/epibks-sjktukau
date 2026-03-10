@@ -58,19 +58,22 @@ export function StudentCheckInList({
           .eq("student_id", studentId);
 
         if (error) {
-          console.error("Failed to remove attendance:", error);
+          console.error("Failed to remove attendance:", error.message, error.code, error.details);
           toast.error("取消签到失败");
         }
       } else {
-        // Insert attendance record
-        const { error } = await supabase.from("student_attendance").insert({
-          event_id: eventId,
-          student_id: studentId,
-          checked_in_by: teacherId,
-        });
+        // Upsert to handle potential duplicate key from stale realtime state
+        const { error } = await supabase.from("student_attendance").upsert(
+          {
+            event_id: eventId,
+            student_id: studentId,
+            checked_in_by: teacherId,
+          },
+          { onConflict: "event_id,student_id" }
+        );
 
         if (error) {
-          console.error("Failed to check in student:", error);
+          console.error("Failed to check in student:", error.message, error.code, error.details);
           toast.error("签到失败");
         }
       }
