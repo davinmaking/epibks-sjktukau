@@ -9,36 +9,13 @@ import { AttendanceStatsCard } from "@/components/attendance-stats-card";
 import { ClassProgressBar } from "@/components/class-progress-bar";
 import { CLASS_NAMES } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem,
-} from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { ArrowLeft, CalendarDays, Loader2 } from "lucide-react";
+import { ArrowLeft, CalendarDays, Loader2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import type { Tables } from "@/lib/types";
 import { formatDateWithWeekday } from "@/lib/utils";
 
 type Event = Tables<"events">;
-
-const STATUS_LABELS: Record<string, string> = {
-  upcoming: "即将开始",
-  ongoing: "进行中",
-  completed: "已结束",
-};
-
-const STATUS_BADGE_VARIANT: Record<
-  string,
-  "default" | "secondary" | "outline"
-> = {
-  upcoming: "default",
-  ongoing: "secondary",
-  completed: "outline",
-};
 
 export default function EventDetailPage() {
   const params = useParams();
@@ -50,7 +27,7 @@ export default function EventDetailPage() {
     { id: string; class_name: string; family_id: string | null }[]
   >([]);
   const [loading, setLoading] = useState(true);
-  const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   // Realtime attendance data
   const {
@@ -93,24 +70,29 @@ export default function EventDetailPage() {
     fetchData();
   }, [eventId, router]);
 
-  async function handleStatusChange(newStatus: string | null) {
-    if (!newStatus || !event) return;
-    setUpdatingStatus(true);
+  async function handleDelete() {
+    if (!event) return;
+    if (!confirm(`确认删除活动「${event.name}」？此操作不可撤销，所有签到记录也将被删除。`)) return;
 
+    setDeleting(true);
     const supabase = createClient();
-    const { error } = await supabase
-      .from("events")
-      .update({ status: newStatus })
-      .eq("id", event.id);
+
+    // Delete attendance records first, then the event
+    await Promise.all([
+      supabase.from("family_attendance").delete().eq("event_id", event.id),
+      supabase.from("student_attendance").delete().eq("event_id", event.id),
+    ]);
+
+    const { error } = await supabase.from("events").delete().eq("id", event.id);
 
     if (error) {
-      console.error("Failed to update status:", error);
-      toast.error("状态更新失败");
+      console.error("Failed to delete event:", error);
+      toast.error("删除失败，请重试");
+      setDeleting(false);
     } else {
-      setEvent({ ...event, status: newStatus });
-      toast.success(`状态已更新为「${STATUS_LABELS[newStatus] ?? newStatus}」`);
+      toast.success(`活动「${event.name}」已删除`);
+      router.push("/events");
     }
-    setUpdatingStatus(false);
   }
 
   if (loading) {
@@ -144,26 +126,20 @@ export default function EventDetailPage() {
           )}
         </div>
 
-        {/* Status selector */}
-        <div className="flex items-center gap-3">
-          <Badge variant={STATUS_BADGE_VARIANT[event.status] ?? "default"}>
-            {STATUS_LABELS[event.status] ?? event.status}
-          </Badge>
-          <Select
-            value={event.status}
-            onValueChange={handleStatusChange}
-            disabled={updatingStatus}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="更改状态" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="upcoming">即将开始</SelectItem>
-              <SelectItem value="ongoing">进行中</SelectItem>
-              <SelectItem value="completed">已结束</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+        {/* Delete button */}
+        <Button
+          variant="outline"
+          className="text-destructive hover:bg-destructive hover:text-destructive-foreground"
+          onClick={handleDelete}
+          disabled={deleting}
+        >
+          {deleting ? (
+            <Loader2 className="size-4 animate-spin" data-icon="inline-start" />
+          ) : (
+            <Trash2 className="size-4" data-icon="inline-start" />
+          )}
+          删除活动
+        </Button>
       </div>
 
       <Separator />

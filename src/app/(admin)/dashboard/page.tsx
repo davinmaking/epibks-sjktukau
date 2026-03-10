@@ -9,7 +9,6 @@ import { AttendanceStatsCard } from "@/components/attendance-stats-card";
 import { ClassProgressBar } from "@/components/class-progress-bar";
 import { CLASS_NAMES } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
   Card,
   CardContent,
@@ -87,11 +86,12 @@ export default function DashboardPage() {
         eventCountResult,
         recentEventsResult,
       ] = await Promise.all([
-        // Ongoing event
+        // Latest event (by date, most recent first)
         supabase
           .from("events")
           .select("*")
-          .eq("status", "ongoing")
+          .gte("date", new Date().toISOString().split("T")[0])
+          .order("date", { ascending: true })
           .limit(1)
           .maybeSingle(),
         // All students (for stats computation)
@@ -116,11 +116,11 @@ export default function DashboardPage() {
         supabase
           .from("events")
           .select("id", { count: "exact", head: true }),
-        // Recent completed events
+        // Recent past events
         supabase
           .from("events")
           .select("*")
-          .eq("status", "completed")
+          .lt("date", new Date().toISOString().split("T")[0])
           .order("date", { ascending: false })
           .limit(3),
       ]);
@@ -225,12 +225,9 @@ export default function DashboardPage() {
         {ongoingEvent ? (
           <Card>
             <CardHeader>
-              <div className="flex items-start justify-between gap-2">
-                <CardTitle className="text-base">
-                  {ongoingEvent.name}
-                </CardTitle>
-                <Badge variant="secondary">进行中</Badge>
-              </div>
+              <CardTitle className="text-base">
+                {ongoingEvent.name}
+              </CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
               {attendanceLoading ? (
@@ -427,12 +424,9 @@ export default function DashboardPage() {
                   >
                     <Link href={`/events/${event.id}`} className="block">
                       <CardHeader className="pb-2">
-                        <div className="flex items-start justify-between gap-2">
-                          <CardTitle className="line-clamp-2 text-base">
-                            {event.name}
-                          </CardTitle>
-                          <Badge variant="outline">已结束</Badge>
-                        </div>
+                        <CardTitle className="line-clamp-2 text-base">
+                          {event.name}
+                        </CardTitle>
                       </CardHeader>
                       <CardContent className="space-y-3">
                         <div className="flex items-center gap-2 text-sm text-muted-foreground">

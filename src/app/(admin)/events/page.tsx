@@ -6,45 +6,63 @@ import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, Plus, CalendarDays, Users, GraduationCap } from "lucide-react";
+import { Loader2, Plus, CalendarDays, Users, GraduationCap, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 import Link from "next/link";
 import type { Tables } from "@/lib/types";
 import { formatDateWithWeekday } from "@/lib/utils";
 
 type Event = Tables<"events">;
 
-const STATUS_CONFIG: Record<
-  string,
-  { label: string; variant: "default" | "secondary" | "outline" }
-> = {
-  upcoming: { label: "即将开始", variant: "default" },
-  ongoing: { label: "进行中", variant: "secondary" },
-  completed: { label: "已结束", variant: "outline" },
-};
-
 export default function EventsPage() {
   const router = useRouter();
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  async function fetchEvents() {
+    const supabase = createClient();
+    const { data, error } = await supabase
+      .from("events")
+      .select("*")
+      .order("date", { ascending: false });
+
+    if (error) {
+      console.error("Failed to fetch events:", error);
+    } else {
+      setEvents(data ?? []);
+    }
+    setLoading(false);
+  }
 
   useEffect(() => {
-    async function fetchEvents() {
-      const supabase = createClient();
-      const { data, error } = await supabase
-        .from("events")
-        .select("*")
-        .order("date", { ascending: false });
-
-      if (error) {
-        console.error("Failed to fetch events:", error);
-      } else {
-        setEvents(data ?? []);
-      }
-      setLoading(false);
-    }
-
     fetchEvents();
   }, []);
+
+  async function handleDelete(e: React.MouseEvent, eventId: string, eventName: string) {
+    e.stopPropagation();
+    if (!confirm(`确认删除活动「${eventName}」？此操作不可撤销。`)) return;
+
+    setDeletingId(eventId);
+    const supabase = createClient();
+
+    // Delete attendance records first, then the event
+    await Promise.all([
+      supabase.from("family_attendance").delete().eq("event_id", eventId),
+      supabase.from("student_attendance").delete().eq("event_id", eventId),
+    ]);
+
+    const { error } = await supabase.from("events").delete().eq("id", eventId);
+
+    if (error) {
+      console.error("Failed to delete event:", error);
+      toast.error("删除失败，请重试");
+    } else {
+      toast.success(`活动「${eventName}」已删除`);
+      fetchEvents();
+    }
+    setDeletingId(null);
+  }
 
   if (loading) {
     return (
@@ -79,9 +97,7 @@ export default function EventsPage() {
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {events.map((event) => {
-            const statusConfig = STATUS_CONFIG[event.status] ?? STATUS_CONFIG.upcoming;
-            return (
+          {events.map((event) => (
               <Card
                 key={event.id}
                 className="cursor-pointer transition-shadow hover:shadow-md focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
@@ -100,9 +116,20 @@ export default function EventsPage() {
                     <CardTitle className="line-clamp-2 text-base">
                       {event.name}
                     </CardTitle>
-                    <Badge variant={statusConfig.variant}>
-                      {statusConfig.label}
-                    </Badge>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="size-8 shrink-0 text-muted-foreground hover:text-destructive"
+                      onClick={(e) => handleDelete(e, event.id, event.name)}
+                      disabled={deletingId === event.id}
+                      aria-label={`删除活动「${event.name}」`}
+                    >
+                      {deletingId === event.id ? (
+                        <Loader2 className="size-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="size-4" />
+                      )}
+                    </Button>
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-3">
@@ -126,8 +153,7 @@ export default function EventsPage() {
                   </div>
                 </CardContent>
               </Card>
-            );
-          })}
+          ))}
         </div>
       )}
     </div>

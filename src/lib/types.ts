@@ -22,7 +22,6 @@ export type Database = {
           description: string | null
           id: string
           name: string
-          status: string
           track_family: boolean
           track_student: boolean
           updated_at: string | null
@@ -34,7 +33,6 @@ export type Database = {
           description?: string | null
           id?: string
           name: string
-          status?: string
           track_family?: boolean
           track_student?: boolean
           updated_at?: string | null
@@ -46,7 +44,6 @@ export type Database = {
           description?: string | null
           id?: string
           name?: string
-          status?: string
           track_family?: boolean
           track_student?: boolean
           updated_at?: string | null

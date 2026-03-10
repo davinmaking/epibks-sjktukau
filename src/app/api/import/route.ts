@@ -106,11 +106,37 @@ function mapRelationship(value: unknown): string | null {
   return map[str] || str;
 }
 
+/** Map class names from APDM Excel to our naming convention */
+const CLASS_NAME_REMAP: Record<string, string> = {
+  "PRASEKOLAH SJK TUKAU": "PRASEKOLAH",
+  "PRASEKOLAH": "PRASEKOLAH",
+  "JOYFUL": "JOYFUL",
+  "SUNSHINE": "SUNSHINE",
+  // Standard primary classes — handle both "TEKUN" and "1 TEKUN" formats
+  "TEKUN": "T1 TEKUN",
+  "1 TEKUN": "T1 TEKUN",
+  "KREATIF": "T2 KREATIF",
+  "2 KREATIF": "T2 KREATIF",
+  "BERDIKARI": "T3 BERDIKARI",
+  "3 BERDIKARI": "T3 BERDIKARI",
+  "BERJUANG": "T4 BERJUANG",
+  "4 BERJUANG": "T4 BERJUANG",
+  "SABAR": "T5 SABAR",
+  "5 SABAR": "T5 SABAR",
+  "BERJAYA": "T6 BERJAYA",
+  "6 BERJAYA": "T6 BERJAYA",
+};
+
+function remapClassName(raw: string): string {
+  const trimmed = raw.trim().toUpperCase();
+  return CLASS_NAME_REMAP[trimmed] || raw.trim();
+}
+
 /** Dynamically find the header row by searching for a row containing "BIL" */
 function findHeaderRowIndex(rows: unknown[][]): number {
   for (let i = 0; i < Math.min(rows.length, 15); i++) {
     const row = rows[i];
-    if (row && row.length > 0 && String(row[0]).trim().toUpperCase() === "BIL") {
+    if (row && row.length > 0 && String(row[0]).trim().toUpperCase().replace(/\./g, "") === "BIL") {
       return i;
     }
   }
@@ -266,11 +292,12 @@ export async function POST(request: Request) {
         }
 
         // --- Student processing ---
-        const className = toStr(row[COL.NAMA_KELAS]);
-        if (!className) {
+        const rawClassName = toStr(row[COL.NAMA_KELAS]);
+        if (!rawClassName) {
           results.errors.push(`${studentName}: 缺少班级名称，跳过`);
           continue;
         }
+        const className = remapClassName(rawClassName);
 
         const studentIdApdm = row[COL.ID_MURID]
           ? String(row[COL.ID_MURID])

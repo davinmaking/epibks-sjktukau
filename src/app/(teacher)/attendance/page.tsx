@@ -32,11 +32,10 @@ export default function TeacherAttendancePage() {
     async function fetchEvents() {
       const supabase = createClient();
 
-      // Fetch ongoing events
+      // Fetch all events
       const { data: eventsData, error: eventsError } = await supabase
         .from("events")
         .select("*")
-        .eq("status", "ongoing")
         .order("date", { ascending: false });
 
       if (eventsError || !eventsData) {
@@ -111,7 +110,7 @@ export default function TeacherAttendancePage() {
       {events.length === 0 ? (
         <div className="flex h-48 flex-col items-center justify-center gap-2 rounded-lg border border-dashed text-muted-foreground">
           <CalendarDays className="size-10" />
-          <p>暂无进行中的活动</p>
+          <p>暂无活动</p>
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2">
@@ -128,10 +127,7 @@ export default function TeacherAttendancePage() {
                 onClick={() => router.push(`/attendance/${event.id}`)}
               >
                 <CardHeader>
-                  <div className="flex items-start justify-between gap-2">
-                    <CardTitle className="text-base">{event.name}</CardTitle>
-                    <Badge variant="secondary">进行中</Badge>
-                  </div>
+                  <CardTitle className="text-base">{event.name}</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
