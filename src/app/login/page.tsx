@@ -58,7 +58,7 @@ export default function LoginPage() {
     if (teacher.role === "admin") {
       router.push("/dashboard");
     } else {
-      router.push("/my-class");
+      router.push("/home");
     }
   }
 
