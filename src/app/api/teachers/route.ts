@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { ROLES } from "@/lib/constants";
+
+const VALID_ROLES = new Set<string>(ROLES);
+const MIN_PASSWORD_LENGTH = 8;
 
 async function verifyAdmin() {
   const supabase = await createClient();
@@ -43,9 +47,18 @@ export async function POST(request: Request) {
       );
     }
 
-    if (password.length < 6) {
+    if (password.length < MIN_PASSWORD_LENGTH) {
       return NextResponse.json(
-        { error: "密码至少需要6个字符" },
+        { error: `密码至少需要${MIN_PASSWORD_LENGTH}个字符` },
+        { status: 400 }
+      );
+    }
+
+    // Validate role against allowlist
+    const validatedRole = role || "teacher";
+    if (!VALID_ROLES.has(validatedRole)) {
+      return NextResponse.json(
+        { error: "无效的角色" },
         { status: 400 }
       );
     }
@@ -62,7 +75,7 @@ export async function POST(request: Request) {
 
     if (createError) {
       return NextResponse.json(
-        { error: `创建用户失败: ${createError.message}` },
+        { error: "创建用户失败" },
         { status: 400 }
       );
     }
@@ -72,24 +85,25 @@ export async function POST(request: Request) {
       id: authData.user.id,
       name,
       email,
-      role: role || "teacher",
+      role: validatedRole,
       class_name: class_name || null,
     });
 
     if (insertError) {
       // Clean up auth user if teacher insert fails
       await admin.auth.admin.deleteUser(authData.user.id);
+      console.error("Failed to create teacher record:", insertError.message);
       return NextResponse.json(
-        { error: `创建教师记录失败: ${insertError.message}` },
+        { error: "创建教师记录失败" },
         { status: 400 }
       );
     }
 
     return NextResponse.json({ success: true, id: authData.user.id });
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
+    console.error("Teacher creation error:", err);
     return NextResponse.json(
-      { error: `操作失败: ${message}` },
+      { error: "操作失败" },
       { status: 500 }
     );
   }
@@ -135,6 +149,14 @@ export async function PATCH(request: Request) {
       }
     }
 
+    // Validate role against allowlist
+    if (role !== undefined && !VALID_ROLES.has(role)) {
+      return NextResponse.json(
+        { error: "无效的角色" },
+        { status: 400 }
+      );
+    }
+
     // Update teacher record
     const updateData: Record<string, string | null> = {};
     if (name !== undefined) updateData.name = name;
@@ -148,8 +170,9 @@ export async function PATCH(request: Request) {
         .eq("id", id);
 
       if (updateError) {
+        console.error("Failed to update teacher:", updateError.message);
         return NextResponse.json(
-          { error: `更新失败: ${updateError.message}` },
+          { error: "更新失败" },
           { status: 400 }
         );
       }
@@ -157,9 +180,9 @@ export async function PATCH(request: Request) {
 
     // Update password if provided
     if (password) {
-      if (password.length < 6) {
+      if (password.length < MIN_PASSWORD_LENGTH) {
         return NextResponse.json(
-          { error: "密码至少需要6个字符" },
+          { error: `密码至少需要${MIN_PASSWORD_LENGTH}个字符` },
           { status: 400 }
         );
       }
@@ -169,8 +192,9 @@ export async function PATCH(request: Request) {
       });
 
       if (pwError) {
+        console.error("Failed to reset password:", pwError.message);
         return NextResponse.json(
-          { error: `重置密码失败: ${pwError.message}` },
+          { error: "重置密码失败" },
           { status: 400 }
         );
       }
@@ -178,9 +202,93 @@ export async function PATCH(request: Request) {
 
     return NextResponse.json({ success: true });
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
+    console.error("Teacher update error:", err);
     return NextResponse.json(
-      { error: `操作失败: ${message}` },
+      { error: "操作失败" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(request: Request) {
+  const auth = await verifyAdmin();
+  if ("error" in auth && auth.error) return auth.error;
+
+  try {
+    const { id } = await request.json();
+
+    if (!id) {
+      return NextResponse.json(
+        { error: "缺少教师ID" },
+        { status: 400 }
+      );
+    }
+
+    // Cannot delete yourself
+    if (id === auth.userId) {
+      return NextResponse.json(
+        { error: "无法删除当前登录的账户" },
+        { status: 400 }
+      );
+    }
+
+    const admin = createAdminClient();
+
+    // Check if this is the last admin
+    const { data: targetTeacher } = await admin
+      .from("teachers")
+      .select("role")
+      .eq("id", id)
+      .single();
+
+    if (!targetTeacher) {
+      return NextResponse.json(
+        { error: "教师不存在" },
+        { status: 404 }
+      );
+    }
+
+    if (targetTeacher.role === "admin") {
+      const { count } = await admin
+        .from("teachers")
+        .select("id", { count: "exact", head: true })
+        .eq("role", "admin");
+
+      if (count !== null && count <= 1) {
+        return NextResponse.json(
+          { error: "无法删除最后一个管理员" },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Delete teacher record first (FK constraint)
+    const { error: deleteError } = await admin
+      .from("teachers")
+      .delete()
+      .eq("id", id);
+
+    if (deleteError) {
+      console.error("Failed to delete teacher:", deleteError.message);
+      return NextResponse.json(
+        { error: "删除教师记录失败" },
+        { status: 400 }
+      );
+    }
+
+    // Delete auth user
+    const { error: authDeleteError } = await admin.auth.admin.deleteUser(id);
+
+    if (authDeleteError) {
+      console.error("Failed to delete auth user:", authDeleteError.message);
+      // Teacher record already deleted — log but don't fail
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (err) {
+    console.error("Teacher deletion error:", err);
+    return NextResponse.json(
+      { error: "操作失败" },
       { status: 500 }
     );
   }

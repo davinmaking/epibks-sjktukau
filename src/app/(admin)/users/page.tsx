@@ -37,6 +37,7 @@ import {
   Plus,
   Pencil,
   KeyRound,
+  Trash2,
   Users,
 } from "lucide-react";
 
@@ -81,6 +82,12 @@ export default function UsersPage() {
   const [newPassword, setNewPassword] = useState("");
   const [pwSubmitting, setPwSubmitting] = useState(false);
   const [pwError, setPwError] = useState("");
+
+  // Delete dialog state
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteTeacher, setDeleteTeacher] = useState<Teacher | null>(null);
+  const [deleteSubmitting, setDeleteSubmitting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
 
   // Success message
   const [successMsg, setSuccessMsg] = useState("");
@@ -264,6 +271,43 @@ export default function UsersPage() {
     }
   }
 
+  // --- Delete teacher ---
+  function openDeleteDialog(teacher: Teacher) {
+    setDeleteTeacher(teacher);
+    setDeleteError("");
+    setDeleteOpen(true);
+  }
+
+  async function handleDelete() {
+    if (!deleteTeacher) return;
+
+    setDeleteSubmitting(true);
+    setDeleteError("");
+
+    try {
+      const res = await fetch("/api/teachers", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: deleteTeacher.id }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setDeleteError(data.error || "删除失败");
+        return;
+      }
+
+      setDeleteOpen(false);
+      setSuccessMsg(`已删除教师「${deleteTeacher.name}」`);
+      fetchTeachers();
+    } catch {
+      setDeleteError("网络错误，请重试");
+    } finally {
+      setDeleteSubmitting(false);
+    }
+  }
+
   const isSelf = (teacherId: string) => user?.id === teacherId;
 
   if (loading) {
@@ -360,6 +404,17 @@ export default function UsersPage() {
                         <KeyRound className="size-3.5" />
                         <span className="sr-only">重置密码</span>
                       </Button>
+                      {!isSelf(t.id) && (
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          className="text-muted-foreground hover:text-destructive"
+                          onClick={() => openDeleteDialog(t)}
+                        >
+                          <Trash2 className="size-3.5" />
+                          <span className="sr-only">删除</span>
+                        </Button>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>
@@ -629,6 +684,52 @@ export default function UsersPage() {
                 <Loader2 className="size-4 animate-spin" data-icon="inline-start" />
               )}
               确认重置
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Teacher Dialog */}
+      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>删除教师</DialogTitle>
+            <DialogDescription>
+              确定要删除教师「{deleteTeacher?.name}」吗？此操作将同时删除该教师的登录账户，且无法恢复。
+            </DialogDescription>
+          </DialogHeader>
+
+          {deleteTeacher && (
+            <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-3 text-sm">
+              <p><span className="font-medium">姓名：</span>{deleteTeacher.name}</p>
+              <p><span className="font-medium">邮箱：</span>{deleteTeacher.email}</p>
+              {deleteTeacher.class_name && (
+                <p><span className="font-medium">班级：</span>{deleteTeacher.class_name}</p>
+              )}
+            </div>
+          )}
+
+          {deleteError && (
+            <p className="text-sm text-destructive">{deleteError}</p>
+          )}
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDeleteOpen(false)}
+              disabled={deleteSubmitting}
+            >
+              取消
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={deleteSubmitting}
+            >
+              {deleteSubmitting && (
+                <Loader2 className="size-4 animate-spin" data-icon="inline-start" />
+              )}
+              确认删除
             </Button>
           </DialogFooter>
         </DialogContent>
