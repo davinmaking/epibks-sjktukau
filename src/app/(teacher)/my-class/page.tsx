@@ -16,9 +16,14 @@ import {
   Phone,
   MapPin,
   User,
+  CalendarDays,
+  ArrowRight,
 } from "lucide-react";
+import Link from "next/link";
+import { formatDate } from "@/lib/utils";
 import type { Tables } from "@/lib/types";
 
+type Event = Tables<"events">;
 type Student = Tables<"students">;
 type Family = Tables<"families">;
 
@@ -32,6 +37,7 @@ export default function MyClassPage() {
   const [allStudents, setAllStudents] = useState<
     Pick<Student, "id" | "name" | "class_name" | "family_id">[]
   >([]);
+  const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
@@ -61,6 +67,15 @@ export default function MyClassPage() {
       const studentsData = (classStudents ?? []) as StudentWithFamily[];
       setStudents(studentsData);
 
+      // Fetch events (ordered by date desc, limit to recent ones)
+      const { data: eventsData } = await supabase
+        .from("events")
+        .select("*")
+        .order("date", { ascending: false })
+        .limit(10);
+
+      setEvents(eventsData ?? []);
+
       // Collect all family_ids from this class for sibling lookup
       const familyIds = [
         ...new Set(
@@ -85,6 +100,18 @@ export default function MyClassPage() {
 
     fetchData();
   }, [teacher]);
+
+  // Active events: upcoming/today events, or fallback to the 2 most recent
+  const activeEvents = useMemo(() => {
+    const today = new Date().toISOString().slice(0, 10);
+    const upcoming = events.filter((e) => e.date >= today);
+    if (upcoming.length > 0) {
+      // Sort upcoming by date ascending (soonest first)
+      return upcoming.sort((a, b) => a.date.localeCompare(b.date));
+    }
+    // Fallback: show 2 most recent events (already sorted desc)
+    return events.slice(0, 2);
+  }, [events]);
 
   const filteredStudents = useMemo(() => {
     if (!search.trim()) return students;
@@ -154,6 +181,50 @@ export default function MyClassPage() {
         </h1>
         <Badge variant="secondary">{filteredStudents.length} 名学生</Badge>
       </div>
+
+      {/* Active Events */}
+      {activeEvents.length > 0 && (
+        <div className="space-y-2">
+          <h2 className="text-sm font-semibold flex items-center gap-1.5">
+            <CalendarDays className="size-4" />
+            活动签到
+          </h2>
+          <div className="grid gap-2">
+            {activeEvents.map((evt) => {
+              const isToday = evt.date === new Date().toISOString().slice(0, 10);
+              const isPast = evt.date < new Date().toISOString().slice(0, 10);
+
+              return (
+                <Link
+                  key={evt.id}
+                  href={`/attendance/${evt.id}`}
+                  className="flex items-center justify-between gap-3 rounded-lg border p-3 transition-colors hover:bg-muted/50"
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium">{evt.name}</p>
+                      {isToday && (
+                        <Badge variant="default" className="text-xs">
+                          今天
+                        </Badge>
+                      )}
+                      {isPast && (
+                        <Badge variant="secondary" className="text-xs">
+                          已结束
+                        </Badge>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {formatDate(evt.date)}
+                    </p>
+                  </div>
+                  <ArrowRight className="size-4 shrink-0 text-muted-foreground" />
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Search */}
       <div className="relative">

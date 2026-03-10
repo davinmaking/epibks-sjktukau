@@ -1,3 +1,10 @@
+export interface AttendeeEntry {
+  type: string;
+  name: string;
+  ic: string;
+  relationship: string;
+}
+
 export const ATTENDEE_TYPES = [
   { value: "父亲", label: "父亲" },
   { value: "母亲", label: "母亲" },

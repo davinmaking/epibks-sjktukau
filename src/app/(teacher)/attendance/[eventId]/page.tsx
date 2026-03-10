@@ -21,12 +21,25 @@ import {
   CheckCircle2,
   Clock,
   UserCheck,
+  Undo2,
 } from "lucide-react";
+import { toast } from "sonner";
 import type { Tables } from "@/lib/types";
+import type { AttendeeEntry } from "@/lib/constants";
 
 type Event = Tables<"events">;
 type Family = Tables<"families">;
 type Student = Tables<"students">;
+
+/** Extract attendee type labels from a family_attendance record */
+function getAttendeeLabels(attendance: Tables<"family_attendance">): string[] {
+  // Try JSONB attendees first (new format)
+  if (attendance.attendees && Array.isArray(attendance.attendees)) {
+    return (attendance.attendees as unknown as AttendeeEntry[]).map((a) => a.type);
+  }
+  // Fallback to legacy single column
+  return attendance.attendee_type ? [attendance.attendee_type] : [];
+}
 
 interface FamilyWithStudents {
   family: Family;
@@ -53,6 +66,9 @@ export default function TeacherCheckInPage() {
 
   // Search
   const [familySearch, setFamilySearch] = useState("");
+
+  // Undo family check-in
+  const [undoingFamilyIds, setUndoingFamilyIds] = useState<Set<string>>(new Set());
 
   // Realtime attendance
   const {
@@ -164,6 +180,31 @@ export default function TeacherCheckInPage() {
     }
     return map;
   }, [familyAttendance]);
+
+  async function handleUndoFamilyCheckIn(familyId: string) {
+    setUndoingFamilyIds((prev) => new Set(prev).add(familyId));
+
+    const supabase = createClient();
+    const { error } = await supabase
+      .from("family_attendance")
+      .delete()
+      .eq("event_id", eventId)
+      .eq("family_id", familyId);
+
+    setUndoingFamilyIds((prev) => {
+      const next = new Set(prev);
+      next.delete(familyId);
+      return next;
+    });
+
+    if (error) {
+      console.error("Failed to undo family check-in:", error.message, error.code);
+      toast.error("撤回签到失败");
+      return;
+    }
+
+    toast.success("已撤回签到");
+  }
 
   // Filtered families by search
   const filteredFamilies = useMemo(() => {
@@ -301,28 +342,62 @@ export default function TeacherCheckInPage() {
                           <p className="font-medium">
                             {family.guardian1_name}
                           </p>
-                          <p className="truncate text-xs text-muted-foreground">
-                            {children.map((c) => c.name).join("、")}
-                          </p>
+                          <div className="mt-0.5 flex flex-wrap gap-1">
+                            {children.map((c) => (
+                              <Badge key={c.id} variant="outline" className="text-xs font-normal">
+                                {c.name}
+                              </Badge>
+                            ))}
+                          </div>
                         </div>
 
                         <div className="shrink-0">
-                          {isCheckedInByMyClass && (
-                            <div className="flex items-center gap-1.5">
-                              <Badge variant="default" className="gap-1">
-                                <CheckCircle2 className="size-3" />
-                                已签到
-                              </Badge>
-                              <span className="text-xs text-muted-foreground">
-                                {new Date(
-                                  attendance.checked_in_at
-                                ).toLocaleTimeString("zh-CN", {
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                })}
-                              </span>
-                            </div>
-                          )}
+                          {isCheckedInByMyClass && (() => {
+                            const labels = getAttendeeLabels(attendance);
+                            return (
+                              <div className="flex flex-col items-end gap-1">
+                                <div className="flex items-center gap-1.5">
+                                  <Badge variant="default" className="gap-1">
+                                    <CheckCircle2 className="size-3" />
+                                    已签到
+                                  </Badge>
+                                  <span className="text-xs text-muted-foreground">
+                                    {new Date(
+                                      attendance.checked_in_at
+                                    ).toLocaleTimeString("zh-CN", {
+                                      hour: "2-digit",
+                                      minute: "2-digit",
+                                    })}
+                                  </span>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon-xs"
+                                    className="text-muted-foreground hover:text-destructive"
+                                    disabled={undoingFamilyIds.has(family.id)}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleUndoFamilyCheckIn(family.id);
+                                    }}
+                                  >
+                                    {undoingFamilyIds.has(family.id) ? (
+                                      <Loader2 className="size-3 animate-spin" />
+                                    ) : (
+                                      <Undo2 className="size-3" />
+                                    )}
+                                  </Button>
+                                </div>
+                                {labels.length > 0 && (
+                                  <div className="flex flex-wrap justify-end gap-1">
+                                    {labels.map((label) => (
+                                      <Badge key={label} variant="secondary" className="text-xs font-normal">
+                                        {label}
+                                      </Badge>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })()}
                           {isCheckedInByOther && (
                             <Badge variant="secondary" className="gap-1">
                               <Clock className="size-3" />

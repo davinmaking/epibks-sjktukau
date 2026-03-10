@@ -109,6 +109,7 @@ export type Database = {
           attendee_name: string | null
           attendee_relationship: string | null
           attendee_type: string
+          attendees: Json | null
           checked_in_at: string
           checked_in_by: string | null
           class_name: string
@@ -122,6 +123,7 @@ export type Database = {
           attendee_name?: string | null
           attendee_relationship?: string | null
           attendee_type: string
+          attendees?: Json | null
           checked_in_at?: string
           checked_in_by?: string | null
           class_name: string
@@ -135,6 +137,7 @@ export type Database = {
           attendee_name?: string | null
           attendee_relationship?: string | null
           attendee_type?: string
+          attendees?: Json | null
           checked_in_at?: string
           checked_in_by?: string | null
           class_name?: string
