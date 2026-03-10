@@ -1,0 +1,176 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
+import { useAuth } from "@/hooks/use-auth";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ArrowLeft, Loader2 } from "lucide-react";
+import { toast } from "sonner";
+
+export default function NewEventPage() {
+  const router = useRouter();
+  const { teacher } = useAuth();
+
+  const [name, setName] = useState("");
+  const [date, setDate] = useState("");
+  const [description, setDescription] = useState("");
+  const [trackFamily, setTrackFamily] = useState(true);
+  const [trackStudent, setTrackStudent] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  function validate(): boolean {
+    const newErrors: Record<string, string> = {};
+    if (!name.trim()) {
+      newErrors.name = "请输入活动名称";
+    }
+    if (!date) {
+      newErrors.date = "请选择日期";
+    }
+    if (!trackFamily && !trackStudent) {
+      newErrors.tracking = "至少选择一种追踪模式";
+    }
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!validate()) return;
+    if (!teacher) return;
+
+    setSubmitting(true);
+    const supabase = createClient();
+
+    const { error } = await supabase.from("events").insert({
+      name: name.trim(),
+      date,
+      description: description.trim() || null,
+      track_family: trackFamily,
+      track_student: trackStudent,
+      created_by: teacher.id,
+    });
+
+    if (error) {
+      console.error("Failed to create event:", error);
+      toast.error("创建活动失败，请重试");
+      setSubmitting(false);
+      return;
+    }
+
+    toast.success("活动创建成功");
+    router.push("/events");
+  }
+
+  return (
+    <div className="space-y-6">
+      <Button
+        variant="ghost"
+        onClick={() => router.push("/events")}
+      >
+        <ArrowLeft className="size-4" data-icon="inline-start" />
+        返回活动列表
+      </Button>
+
+      <Card className="mx-auto max-w-lg">
+        <CardHeader>
+          <CardTitle>创建活动</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-5">
+            {/* Event name */}
+            <div className="space-y-2">
+              <Label htmlFor="name">活动名称 *</Label>
+              <Input
+                id="name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="例：2026年第一学期家长日"
+              />
+              {errors.name && (
+                <p className="text-sm text-destructive">{errors.name}</p>
+              )}
+            </div>
+
+            {/* Date */}
+            <div className="space-y-2">
+              <Label htmlFor="date">日期 *</Label>
+              <Input
+                id="date"
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+              />
+              {errors.date && (
+                <p className="text-sm text-destructive">{errors.date}</p>
+              )}
+            </div>
+
+            {/* Description */}
+            <div className="space-y-2">
+              <Label htmlFor="description">描述</Label>
+              <textarea
+                id="description"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="活动描述（可选）"
+                rows={3}
+                className="flex w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+              />
+            </div>
+
+            {/* Tracking mode */}
+            <div className="space-y-3">
+              <Label>追踪模式 *</Label>
+              <div className="flex flex-col gap-3">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <Checkbox
+                    checked={trackFamily}
+                    onCheckedChange={(checked) =>
+                      setTrackFamily(checked as boolean)
+                    }
+                  />
+                  <span className="text-sm">追踪家庭出席</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <Checkbox
+                    checked={trackStudent}
+                    onCheckedChange={(checked) =>
+                      setTrackStudent(checked as boolean)
+                    }
+                  />
+                  <span className="text-sm">追踪学生出席</span>
+                </label>
+              </div>
+              {errors.tracking && (
+                <p className="text-sm text-destructive">{errors.tracking}</p>
+              )}
+            </div>
+
+            {/* Submit */}
+            <div className="flex gap-3 pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => router.push("/events")}
+              >
+                取消
+              </Button>
+              <Button type="submit" disabled={submitting}>
+                {submitting && (
+                  <Loader2 className="size-4 animate-spin" data-icon="inline-start" />
+                )}
+                创建活动
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
