@@ -305,7 +305,7 @@ export default function UsersPage() {
           <p className="text-sm">点击「添加教师」开始创建</p>
         </div>
       ) : (
-        <div className="rounded-lg border">
+        <div className="overflow-x-auto rounded-lg border">
           <Table>
             <TableHeader>
               <TableRow>

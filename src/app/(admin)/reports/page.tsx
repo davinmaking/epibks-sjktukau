@@ -299,13 +299,13 @@ export default function ReportsPage() {
       </div>
 
       {/* Event Selector */}
-      <div className="flex items-center gap-3">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
         <label className="text-sm font-medium text-muted-foreground">选择活动:</label>
         <Select
           value={selectedEventId}
           onValueChange={(v) => setSelectedEventId(v ?? "")}
         >
-          <SelectTrigger className="w-72">
+          <SelectTrigger className="w-full sm:w-72">
             <SelectValue placeholder="选择活动" />
           </SelectTrigger>
           <SelectContent>
