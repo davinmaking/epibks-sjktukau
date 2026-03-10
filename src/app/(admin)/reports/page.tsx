@@ -4,7 +4,7 @@ import { useEffect, useState, useMemo, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { CLASS_NAMES, CLASS_YEAR_MAP } from "@/lib/constants";
 import type { Tables } from "@/lib/types";
-import { formatDateShort } from "@/lib/utils";
+import { formatDateShort, getStatusColors } from "@/lib/utils";
 import {
   Select,
   SelectContent,
@@ -33,24 +33,17 @@ function ratePercent(checked: number, total: number): number {
 }
 
 function rateRowColor(checked: number, total: number): string {
-  const pct = ratePercent(checked, total);
-  if (pct >= 75) return "bg-green-50 dark:bg-green-950/20";
-  if (pct >= 50) return "bg-yellow-50 dark:bg-yellow-950/20";
-  return "bg-red-50 dark:bg-red-950/20";
+  const colors = getStatusColors(ratePercent(checked, total));
+  return `${colors.bg} ${colors.bgDark}`;
 }
 
 function rateCellColor(checked: number, total: number): string {
-  const pct = ratePercent(checked, total);
-  if (pct >= 75) return "text-green-700 dark:text-green-400";
-  if (pct >= 50) return "text-yellow-700 dark:text-yellow-400";
-  return "text-red-700 dark:text-red-400";
+  const colors = getStatusColors(ratePercent(checked, total));
+  return `${colors.text} ${colors.textDark}`;
 }
 
 function rateLabel(checked: number, total: number): string {
-  const pct = ratePercent(checked, total);
-  if (pct >= 75) return "良好";
-  if (pct >= 50) return "一般";
-  return "需关注";
+  return getStatusColors(ratePercent(checked, total)).label;
 }
 
 export default function ReportsPage() {
@@ -79,39 +72,48 @@ export default function ReportsPage() {
     [events, selectedEventId]
   );
 
-  // Fetch events on mount
+  // Fetch events and students on mount (students cached, not re-fetched per event)
   useEffect(() => {
-    async function fetchEvents() {
+    async function fetchInitialData() {
       const supabase = createClient();
-      const { data, error } = await supabase
-        .from("events")
-        .select("*")
-        .order("date", { ascending: false });
+      const [eventsRes, studentsRes] = await Promise.all([
+        supabase
+          .from("events")
+          .select("*")
+          .order("date", { ascending: false }),
+        supabase.from("students").select("*"),
+      ]);
 
-      if (error) {
-        console.error("Failed to fetch events:", error);
+      if (eventsRes.error) {
+        console.error("Failed to fetch events:", eventsRes.error);
       } else {
-        const eventList = data ?? [];
+        const eventList = eventsRes.data ?? [];
         setEvents(eventList);
         if (eventList.length > 0) {
           setSelectedEventId(eventList[0].id);
         }
       }
+
+      if (studentsRes.error) {
+        console.error("Failed to fetch students:", studentsRes.error);
+      } else {
+        setStudents(studentsRes.data ?? []);
+      }
+
       setLoadingEvents(false);
     }
-    fetchEvents();
+    fetchInitialData();
   }, []);
 
-  // Fetch event-specific data when selected event changes
+  // Fetch attendance data when selected event changes (students already cached)
   useEffect(() => {
     if (!selectedEventId) return;
 
-    async function fetchEventData() {
+    async function fetchEventAttendance() {
       setLoadingData(true);
       const supabase = createClient();
 
-      const [studentsRes, familyRes, studentAttRes] = await Promise.all([
-        supabase.from("students").select("*"),
+      const [familyRes, studentAttRes] = await Promise.all([
         supabase
           .from("family_attendance")
           .select("*")
@@ -122,16 +124,14 @@ export default function ReportsPage() {
           .eq("event_id", selectedEventId),
       ]);
 
-      if (studentsRes.error) console.error("Failed to fetch students:", studentsRes.error);
       if (familyRes.error) console.error("Failed to fetch family attendance:", familyRes.error);
       if (studentAttRes.error) console.error("Failed to fetch student attendance:", studentAttRes.error);
 
-      setStudents(studentsRes.data ?? []);
       setFamilyAttendance(familyRes.data ?? []);
       setStudentAttendance(studentAttRes.data ?? []);
       setLoadingData(false);
     }
-    fetchEventData();
+    fetchEventAttendance();
   }, [selectedEventId]);
 
   // Fetch all events summary data for Tab 3
@@ -310,7 +310,7 @@ export default function ReportsPage() {
 
   if (loadingEvents) {
     return (
-      <div className="flex h-64 items-center justify-center">
+      <div className="flex h-64 items-center justify-center" role="status" aria-label="加载中">
         <Loader2 className="size-8 animate-spin text-muted-foreground" />
       </div>
     );
@@ -369,7 +369,7 @@ export default function ReportsPage() {
       <Tabs
         defaultValue="class"
         onValueChange={(v) => {
-          if (v === "all" && allEventsData.length === 0) {
+          if (v === "all") {
             fetchAllEventsSummary();
           }
         }}
@@ -383,7 +383,7 @@ export default function ReportsPage() {
         {/* Tab 1: By Class */}
         <TabsContent value="class">
           {loadingData ? (
-            <div className="flex h-40 items-center justify-center">
+            <div className="flex h-40 items-center justify-center" role="status" aria-label="加载数据">
               <Loader2 className="size-6 animate-spin text-muted-foreground" />
             </div>
           ) : !showFamily && !showStudent ? (
@@ -472,7 +472,7 @@ export default function ReportsPage() {
         {/* Tab 2: By Year Level */}
         <TabsContent value="year">
           {loadingData ? (
-            <div className="flex h-40 items-center justify-center">
+            <div className="flex h-40 items-center justify-center" role="status" aria-label="加载数据">
               <Loader2 className="size-6 animate-spin text-muted-foreground" />
             </div>
           ) : !showFamily && !showStudent ? (
@@ -561,7 +561,7 @@ export default function ReportsPage() {
         {/* Tab 3: All Events Comparison */}
         <TabsContent value="all">
           {loadingAllEvents ? (
-            <div className="flex h-40 items-center justify-center">
+            <div className="flex h-40 items-center justify-center" role="status" aria-label="加载数据">
               <Loader2 className="size-6 animate-spin text-muted-foreground" />
             </div>
           ) : allEventsData.length === 0 ? (

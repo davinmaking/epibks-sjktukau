@@ -78,10 +78,17 @@ export default function EventDetailPage() {
     const supabase = createClient();
 
     // Delete attendance records first, then the event
-    await Promise.all([
+    const [familyDelResult, studentDelResult] = await Promise.all([
       supabase.from("family_attendance").delete().eq("event_id", event.id),
       supabase.from("student_attendance").delete().eq("event_id", event.id),
     ]);
+
+    if (familyDelResult.error || studentDelResult.error) {
+      console.error("Failed to delete attendance records:", familyDelResult.error, studentDelResult.error);
+      toast.error("删除签到记录失败，请重试");
+      setDeleting(false);
+      return;
+    }
 
     const { error } = await supabase.from("events").delete().eq("id", event.id);
 
@@ -97,7 +104,7 @@ export default function EventDetailPage() {
 
   if (loading) {
     return (
-      <div className="flex h-64 items-center justify-center">
+      <div className="flex h-64 items-center justify-center" role="status" aria-label="加载中">
         <Loader2 className="size-8 animate-spin text-muted-foreground" />
       </div>
     );
@@ -146,7 +153,7 @@ export default function EventDetailPage() {
 
       {/* Loading attendance */}
       {attendanceLoading ? (
-        <div className="flex h-32 items-center justify-center">
+        <div className="flex h-32 items-center justify-center" role="status" aria-label="加载出席数据">
           <Loader2 className="size-6 animate-spin text-muted-foreground" />
         </div>
       ) : (
@@ -183,7 +190,7 @@ export default function EventDetailPage() {
                   return (
                     <ClassProgressBar
                       key={cls}
-                      className={cls}
+                      classLabel={cls}
                       checkedIn={stat.checkedInFamilies}
                       total={stat.totalFamilies}
                     />
@@ -194,7 +201,7 @@ export default function EventDetailPage() {
                   return (
                     <ClassProgressBar
                       key={cls}
-                      className={cls}
+                      classLabel={cls}
                       checkedIn={stat.checkedInStudents}
                       total={stat.totalStudents}
                     />

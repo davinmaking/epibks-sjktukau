@@ -47,10 +47,17 @@ export default function EventsPage() {
     const supabase = createClient();
 
     // Delete attendance records first, then the event
-    await Promise.all([
+    const [familyDelResult, studentDelResult] = await Promise.all([
       supabase.from("family_attendance").delete().eq("event_id", eventId),
       supabase.from("student_attendance").delete().eq("event_id", eventId),
     ]);
+
+    if (familyDelResult.error || studentDelResult.error) {
+      console.error("Failed to delete attendance records:", familyDelResult.error, studentDelResult.error);
+      toast.error("删除签到记录失败，请重试");
+      setDeletingId(null);
+      return;
+    }
 
     const { error } = await supabase.from("events").delete().eq("id", eventId);
 
@@ -66,7 +73,7 @@ export default function EventsPage() {
 
   if (loading) {
     return (
-      <div className="flex h-64 items-center justify-center">
+      <div className="flex h-64 items-center justify-center" role="status" aria-label="加载中">
         <Loader2 className="size-8 animate-spin text-muted-foreground" />
       </div>
     );

@@ -19,6 +19,7 @@ import { Separator } from "@/components/ui/separator";
 import {
   Calendar,
   Users,
+  UserCog,
   BarChart3,
   Plus,
   ArrowRight,
@@ -73,6 +74,8 @@ export default function DashboardPage() {
   });
 
   useEffect(() => {
+    let cancelled = false;
+
     async function fetchDashboardData() {
       const supabase = createClient();
 
@@ -124,6 +127,8 @@ export default function DashboardPage() {
           .order("date", { ascending: false })
           .limit(3),
       ]);
+
+      if (cancelled) return;
 
       // Set ongoing event
       if (ongoingResult.data) {
@@ -198,11 +203,15 @@ export default function DashboardPage() {
     }
 
     fetchDashboardData();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   if (loading) {
     return (
-      <div className="flex h-64 items-center justify-center">
+      <div className="flex h-64 items-center justify-center" role="status" aria-label="加载中">
         <Loader2 className="size-8 animate-spin text-muted-foreground" />
       </div>
     );
@@ -231,7 +240,7 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent className="space-y-6">
               {attendanceLoading ? (
-                <div className="flex h-24 items-center justify-center">
+                <div className="flex h-24 items-center justify-center" role="status" aria-label="加载出席数据">
                   <Loader2 className="size-6 animate-spin text-muted-foreground" />
                 </div>
               ) : (
@@ -272,7 +281,7 @@ export default function DashboardPage() {
                           return (
                             <ClassProgressBar
                               key={cls}
-                              className={cls}
+                              classLabel={cls}
                               checkedIn={stat.checkedInFamilies}
                               total={stat.totalFamilies}
                             />
@@ -283,7 +292,7 @@ export default function DashboardPage() {
                           return (
                             <ClassProgressBar
                               key={cls}
-                              className={cls}
+                              classLabel={cls}
                               checkedIn={stat.checkedInStudents}
                               total={stat.totalStudents}
                             />
@@ -325,7 +334,7 @@ export default function DashboardPage() {
       {/* Section 2: Quick Stats */}
       <section className="space-y-4">
         <h2 className="text-lg font-semibold">数据概览</h2>
-        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
           <Card>
             <CardHeader className="pb-1">
               <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -494,7 +503,7 @@ export default function DashboardPage() {
               variant="outline"
               render={<Link href="/users" />}
             >
-              <Users className="size-4" data-icon="inline-start" />
+              <UserCog className="size-4" data-icon="inline-start" />
               管理用户
             </Button>
           </CardContent>

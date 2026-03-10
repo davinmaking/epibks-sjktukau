@@ -39,3 +39,42 @@ export function formatTime(date: string | Date): string {
     minute: "2-digit",
   });
 }
+
+// Shared status color utility for attendance rates
+export function getStatusColors(percentage: number): {
+  text: string;
+  textDark: string;
+  bg: string;
+  bgDark: string;
+  indicator: string;
+  label: string;
+} {
+  if (percentage >= 75) {
+    return {
+      text: "text-green-700",
+      textDark: "dark:text-green-400",
+      bg: "bg-green-50",
+      bgDark: "dark:bg-green-950/20",
+      indicator: "[&_[data-slot=progress-indicator]]:bg-green-600",
+      label: "良好",
+    };
+  }
+  if (percentage >= 50) {
+    return {
+      text: "text-yellow-700",
+      textDark: "dark:text-yellow-400",
+      bg: "bg-yellow-50",
+      bgDark: "dark:bg-yellow-950/20",
+      indicator: "[&_[data-slot=progress-indicator]]:bg-yellow-600",
+      label: "一般",
+    };
+  }
+  return {
+    text: "text-red-700",
+    textDark: "dark:text-red-400",
+    bg: "bg-red-50",
+    bgDark: "dark:bg-red-950/20",
+    indicator: "[&_[data-slot=progress-indicator]]:bg-red-600",
+    label: "需关注",
+  };
+}

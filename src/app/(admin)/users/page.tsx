@@ -40,6 +40,7 @@ import {
   Trash2,
   Users,
 } from "lucide-react";
+import { toast } from "sonner";
 
 type Teacher = Tables<"teachers">;
 
@@ -89,8 +90,7 @@ export default function UsersPage() {
   const [deleteSubmitting, setDeleteSubmitting] = useState(false);
   const [deleteError, setDeleteError] = useState("");
 
-  // Success message
-  const [successMsg, setSuccessMsg] = useState("");
+  // (success messages use sonner toast)
 
   const fetchTeachers = useCallback(async () => {
     const supabase = createClient();
@@ -111,12 +111,6 @@ export default function UsersPage() {
     fetchTeachers();
   }, [fetchTeachers]);
 
-  // Auto-dismiss success message
-  useEffect(() => {
-    if (!successMsg) return;
-    const timer = setTimeout(() => setSuccessMsg(""), 3000);
-    return () => clearTimeout(timer);
-  }, [successMsg]);
 
   // --- Add teacher ---
   function openAddDialog() {
@@ -165,7 +159,7 @@ export default function UsersPage() {
       }
 
       setAddOpen(false);
-      setSuccessMsg("教师账户创建成功");
+      toast.success("教师账户创建成功");
       fetchTeachers();
     } catch {
       setAddError("网络错误，请重试");
@@ -215,7 +209,7 @@ export default function UsersPage() {
       }
 
       setEditOpen(false);
-      setSuccessMsg("教师信息已更新");
+      toast.success("教师信息已更新");
       fetchTeachers();
     } catch {
       setEditError("网络错误，请重试");
@@ -263,7 +257,7 @@ export default function UsersPage() {
       }
 
       setPwOpen(false);
-      setSuccessMsg("密码已重置");
+      toast.success("密码已重置");
     } catch {
       setPwError("网络错误，请重试");
     } finally {
@@ -299,7 +293,7 @@ export default function UsersPage() {
       }
 
       setDeleteOpen(false);
-      setSuccessMsg(`已删除教师「${deleteTeacher.name}」`);
+      toast.success(`已删除教师「${deleteTeacher.name}」`);
       fetchTeachers();
     } catch {
       setDeleteError("网络错误，请重试");
@@ -312,7 +306,7 @@ export default function UsersPage() {
 
   if (loading) {
     return (
-      <div className="flex h-64 items-center justify-center">
+      <div className="flex h-64 items-center justify-center" role="status" aria-label="加载中">
         <Loader2 className="size-8 animate-spin text-muted-foreground" />
       </div>
     );
@@ -320,13 +314,6 @@ export default function UsersPage() {
 
   return (
     <div className="space-y-6">
-      {/* Success toast */}
-      {successMsg && (
-        <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800 dark:border-green-800 dark:bg-green-950 dark:text-green-200">
-          {successMsg}
-        </div>
-      )}
-
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -387,32 +374,32 @@ export default function UsersPage() {
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-1">
+                    <div className="flex items-center justify-end gap-0.5">
                       <Button
                         variant="ghost"
-                        size="icon-sm"
+                        size="icon"
                         onClick={() => openEditDialog(t)}
+                        aria-label={`编辑 ${t.name}`}
                       >
-                        <Pencil className="size-3.5" />
-                        <span className="sr-only">编辑</span>
+                        <Pencil className="size-4" />
                       </Button>
                       <Button
                         variant="ghost"
-                        size="icon-sm"
+                        size="icon"
                         onClick={() => openPwDialog(t)}
+                        aria-label={`重置 ${t.name} 的密码`}
                       >
-                        <KeyRound className="size-3.5" />
-                        <span className="sr-only">重置密码</span>
+                        <KeyRound className="size-4" />
                       </Button>
                       {!isSelf(t.id) && (
                         <Button
                           variant="ghost"
-                          size="icon-sm"
+                          size="icon"
                           className="text-muted-foreground hover:text-destructive"
                           onClick={() => openDeleteDialog(t)}
+                          aria-label={`删除 ${t.name}`}
                         >
-                          <Trash2 className="size-3.5" />
-                          <span className="sr-only">删除</span>
+                          <Trash2 className="size-4" />
                         </Button>
                       )}
                     </div>

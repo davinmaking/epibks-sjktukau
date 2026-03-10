@@ -138,6 +138,7 @@ export function DataTable<T extends Record<string, any>>({
                       type="button"
                       className="inline-flex items-center hover:text-foreground"
                       onClick={() => handleSort(col.key)}
+                      aria-label={`按${col.label}排序${sortKey === col.key ? (sortDir === "asc" ? "，当前升序" : "，当前降序") : ""}`}
                     >
                       {col.label}
                       <SortIcon colKey={col.key} />
@@ -190,17 +191,19 @@ export function DataTable<T extends Record<string, any>>({
           <div className="flex items-center gap-1">
             <Button
               variant="outline"
-              size="icon-sm"
+              size="icon"
               disabled={safeP === 0}
               onClick={() => setPage((p) => p - 1)}
+              aria-label="上一页"
             >
               <ChevronLeft className="size-4" />
             </Button>
             <Button
               variant="outline"
-              size="icon-sm"
+              size="icon"
               disabled={safeP >= totalPages - 1}
               onClick={() => setPage((p) => p + 1)}
+              aria-label="下一页"
             >
               <ChevronRight className="size-4" />
             </Button>

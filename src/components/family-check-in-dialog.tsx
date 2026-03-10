@@ -56,51 +56,56 @@ export function FamilyCheckInDialog({
   const [attendeeData, setAttendeeData] = useState<Map<string, AttendeeFormData>>(new Map());
   const [submitting, setSubmitting] = useState(false);
 
+  // Known relationship types from ATTENDEE_TYPES
+  const FATHER = ATTENDEE_TYPES[0].value; // 父亲
+  const MOTHER = ATTENDEE_TYPES[1].value; // 母亲
+  const GUARDIAN = ATTENDEE_TYPES[2].value; // 监护人
+
   // Auto-fill helper: get guardian data for a given type
   const getAutoFillData = useCallback(
     (type: string): AttendeeFormData => {
-      if (type === "父亲") {
-        if (family.guardian1_relationship === "父亲") {
-          return { name: family.guardian1_name, ic: family.guardian1_ic, relationship: "父亲" };
+      if (type === FATHER) {
+        if (family.guardian1_relationship === FATHER) {
+          return { name: family.guardian1_name, ic: family.guardian1_ic, relationship: FATHER };
         }
-        if (family.guardian2_relationship === "父亲") {
-          return { name: family.guardian2_name ?? "", ic: family.guardian2_ic ?? "", relationship: "父亲" };
+        if (family.guardian2_relationship === FATHER) {
+          return { name: family.guardian2_name ?? "", ic: family.guardian2_ic ?? "", relationship: FATHER };
         }
-        return { name: "", ic: "", relationship: "父亲" };
+        return { name: "", ic: "", relationship: FATHER };
       }
 
-      if (type === "母亲") {
-        if (family.guardian2_relationship === "母亲") {
-          return { name: family.guardian2_name ?? "", ic: family.guardian2_ic ?? "", relationship: "母亲" };
+      if (type === MOTHER) {
+        if (family.guardian2_relationship === MOTHER) {
+          return { name: family.guardian2_name ?? "", ic: family.guardian2_ic ?? "", relationship: MOTHER };
         }
-        if (family.guardian1_relationship === "母亲") {
-          return { name: family.guardian1_name, ic: family.guardian1_ic, relationship: "母亲" };
+        if (family.guardian1_relationship === MOTHER) {
+          return { name: family.guardian1_name, ic: family.guardian1_ic, relationship: MOTHER };
         }
-        return { name: "", ic: "", relationship: "母亲" };
+        return { name: "", ic: "", relationship: MOTHER };
       }
 
-      if (type === "监护人") {
+      if (type === GUARDIAN) {
         if (
           family.guardian1_relationship &&
-          family.guardian1_relationship !== "父亲" &&
-          family.guardian1_relationship !== "母亲"
+          family.guardian1_relationship !== FATHER &&
+          family.guardian1_relationship !== MOTHER
         ) {
           return { name: family.guardian1_name, ic: family.guardian1_ic, relationship: family.guardian1_relationship };
         }
         if (
           family.guardian2_relationship &&
-          family.guardian2_relationship !== "父亲" &&
-          family.guardian2_relationship !== "母亲"
+          family.guardian2_relationship !== FATHER &&
+          family.guardian2_relationship !== MOTHER
         ) {
           return { name: family.guardian2_name ?? "", ic: family.guardian2_ic ?? "", relationship: family.guardian2_relationship };
         }
-        return { name: "", ic: "", relationship: "监护人" };
+        return { name: "", ic: "", relationship: GUARDIAN };
       }
 
       // 其他
       return { name: "", ic: "", relationship: "" };
     },
-    [family]
+    [family, FATHER, MOTHER, GUARDIAN]
   );
 
   // Reset form when dialog closes; pre-select types with stored guardian data when opening
@@ -192,9 +197,7 @@ export function FamilyCheckInDialog({
     // First attendee used for legacy columns
     const first = attendees[0];
 
-    // Close dialog immediately (optimistic) — submit in background
-    onOpenChange(false);
-    toast.success("签到成功");
+    setSubmitting(true);
 
     const supabase = createClient();
     const { error } = await supabase.from("family_attendance").insert({
@@ -209,6 +212,8 @@ export function FamilyCheckInDialog({
       checked_in_by: teacherId,
     });
 
+    setSubmitting(false);
+
     if (error) {
       if (error.code === "23505") {
         toast.error("该家庭已签到");
@@ -219,6 +224,8 @@ export function FamilyCheckInDialog({
       return;
     }
 
+    onOpenChange(false);
+    toast.success("签到成功");
     onSuccess?.();
   }
 
@@ -270,10 +277,11 @@ export function FamilyCheckInDialog({
                 {isSelected && data && (
                   <div className="ml-4 space-y-2 border-l-2 border-primary/20 pl-4">
                     <div className="space-y-1">
-                      <label className="text-xs font-medium text-muted-foreground">
+                      <label htmlFor={`attendee-name-${type.value}`} className="text-xs font-medium text-muted-foreground">
                         姓名 <span className="text-destructive">*</span>
                       </label>
                       <Input
+                        id={`attendee-name-${type.value}`}
                         value={data.name}
                         onChange={(e) =>
                           updateAttendeeField(type.value, "name", e.target.value)
@@ -284,10 +292,11 @@ export function FamilyCheckInDialog({
                       />
                     </div>
                     <div className="space-y-1">
-                      <label className="text-xs font-medium text-muted-foreground">
+                      <label htmlFor={`attendee-ic-${type.value}`} className="text-xs font-medium text-muted-foreground">
                         身份证号码
                       </label>
                       <Input
+                        id={`attendee-ic-${type.value}`}
                         value={data.ic}
                         onChange={(e) =>
                           updateAttendeeField(type.value, "ic", e.target.value)
@@ -300,10 +309,11 @@ export function FamilyCheckInDialog({
                     </div>
                     {type.value === "其他" && (
                       <div className="space-y-1">
-                        <label className="text-xs font-medium text-muted-foreground">
+                        <label htmlFor={`attendee-rel-${type.value}`} className="text-xs font-medium text-muted-foreground">
                           关系
                         </label>
                         <Input
+                          id={`attendee-rel-${type.value}`}
                           value={data.relationship}
                           onChange={(e) =>
                             updateAttendeeField(type.value, "relationship", e.target.value)

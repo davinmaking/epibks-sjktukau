@@ -261,7 +261,7 @@ export default function TeacherCheckInPage() {
 
   if (loading || attendanceLoading) {
     return (
-      <div className="flex h-64 items-center justify-center">
+      <div className="flex h-64 items-center justify-center" role="status" aria-label="加载中">
         <Loader2 className="size-8 animate-spin text-muted-foreground" />
       </div>
     );
