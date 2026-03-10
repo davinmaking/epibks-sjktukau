@@ -119,7 +119,7 @@ export async function POST(request: Request) {
     const { data: teacher } = await supabase
       .from("teachers")
       .select("role")
-      .eq("user_id", user.id)
+      .eq("id", user.id)
       .single();
 
     if (!teacher || teacher.role !== "admin") {
