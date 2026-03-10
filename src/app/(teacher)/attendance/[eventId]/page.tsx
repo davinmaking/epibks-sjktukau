@@ -75,6 +75,7 @@ export default function TeacherCheckInPage() {
     familyAttendance,
     studentAttendance,
     isLoading: attendanceLoading,
+    refetch: refetchAttendance,
   } = useRealtimeAttendance(eventId);
 
   // Stats scoped to teacher's class
@@ -204,6 +205,8 @@ export default function TeacherCheckInPage() {
     }
 
     toast.success("已撤回签到");
+    // Refetch as fallback in case realtime doesn't deliver the update
+    refetchAttendance();
   }
 
   // Filtered families by search
@@ -444,6 +447,7 @@ export default function TeacherCheckInPage() {
                 studentAttendance={studentAttendance}
                 eventId={eventId}
                 teacherId={teacher.id}
+                onMutate={refetchAttendance}
               />
             </TabsContent>
           )}
@@ -467,6 +471,7 @@ export default function TeacherCheckInPage() {
           eventId={eventId}
           className={teacher.class_name!}
           teacherId={teacher.id}
+          onSuccess={refetchAttendance}
         />
       )}
     </div>

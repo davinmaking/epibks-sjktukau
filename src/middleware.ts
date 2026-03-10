@@ -56,7 +56,7 @@ export async function middleware(request: NextRequest) {
 
     if (teacher?.role !== "admin") {
       const url = request.nextUrl.clone();
-      url.pathname = "/my-class";
+      url.pathname = "/home";
       return NextResponse.redirect(url);
     }
   }

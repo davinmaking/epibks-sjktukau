@@ -41,8 +41,9 @@ const adminLinks: NavItem[] = [
 ];
 
 const teacherLinks: NavItem[] = [
-  { href: "/my-class", label: "我的班级", icon: School },
+  { href: "/home", label: "仪表盘", icon: LayoutDashboard },
   { href: "/attendance", label: "出席记录", icon: ClipboardCheck },
+  { href: "/my-class", label: "我的班级", icon: School },
 ];
 
 interface NavSidebarProps {

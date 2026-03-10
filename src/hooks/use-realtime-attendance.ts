@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { Tables } from "@/lib/types";
 
@@ -9,6 +9,8 @@ interface UseRealtimeAttendanceResult {
   familyAttendance: FamilyAttendance[];
   studentAttendance: StudentAttendance[];
   isLoading: boolean;
+  /** Re-fetch attendance data from the server (use after local mutations as fallback) */
+  refetch: () => Promise<void>;
 }
 
 export function useRealtimeAttendance(
@@ -21,6 +23,32 @@ export function useRealtimeAttendance(
     StudentAttendance[]
   >([]);
   const [isLoading, setIsLoading] = useState(true);
+  const eventIdRef = useRef(eventId);
+  eventIdRef.current = eventId;
+
+  const refetch = useCallback(async () => {
+    const currentEventId = eventIdRef.current;
+    if (!currentEventId) return;
+
+    const supabase = createClient();
+    const [familyResult, studentResult] = await Promise.all([
+      supabase
+        .from("family_attendance")
+        .select("*")
+        .eq("event_id", currentEventId),
+      supabase
+        .from("student_attendance")
+        .select("*")
+        .eq("event_id", currentEventId),
+    ]);
+
+    if (familyResult.data) {
+      setFamilyAttendance(familyResult.data);
+    }
+    if (studentResult.data) {
+      setStudentAttendance(studentResult.data);
+    }
+  }, []);
 
   useEffect(() => {
     if (!eventId) {
@@ -157,5 +185,5 @@ export function useRealtimeAttendance(
     };
   }, [eventId]);
 
-  return { familyAttendance, studentAttendance, isLoading };
+  return { familyAttendance, studentAttendance, isLoading, refetch };
 }

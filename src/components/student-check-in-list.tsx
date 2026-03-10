@@ -15,6 +15,7 @@ interface StudentCheckInListProps {
   studentAttendance: StudentAttendance[];
   eventId: string;
   teacherId: string;
+  onMutate?: () => void;
 }
 
 export function StudentCheckInList({
@@ -22,6 +23,7 @@ export function StudentCheckInList({
   studentAttendance,
   eventId,
   teacherId,
+  onMutate,
 }: StudentCheckInListProps) {
   const [search, setSearch] = useState("");
   const [loadingIds, setLoadingIds] = useState<Set<string>>(new Set());
@@ -84,8 +86,11 @@ export function StudentCheckInList({
         next.delete(studentId);
         return next;
       });
+
+      // Refetch as fallback in case realtime doesn't deliver the update
+      onMutate?.();
     },
-    [eventId, teacherId]
+    [eventId, teacherId, onMutate]
   );
 
   return (
