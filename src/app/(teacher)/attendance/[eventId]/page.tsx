@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   ArrowLeft,
   Loader2,
@@ -19,9 +20,17 @@ import {
   UserCheck,
   Undo2,
   Pencil,
+  FileDown,
 } from "lucide-react";
 import { toast } from "sonner";
 import type { Tables } from "@/lib/types";
+
+interface AttendeeEntry {
+  type: string;
+  name: string;
+  ic: string;
+  relationship: string;
+}
 
 type Event = Tables<"events">;
 type Family = Tables<"families">;
@@ -259,8 +268,74 @@ export default function TeacherCheckInPage() {
     refetchAttendance();
   }
 
-  // Student-only mode: filter & sort students directly
+  // Student-only mode
   const studentOnly = event?.track_student && !event?.track_family;
+
+  // Detail tab: families not checked in
+  const notCheckedInFamilies = useMemo(
+    () => familyGroups.filter(({ family }) => !familyAttendanceMap.has(family.id)),
+    [familyGroups, familyAttendanceMap]
+  );
+
+  // Detail tab: students not checked in
+  const notCheckedInStudents = useMemo(
+    () => classStudents.filter((s) => !checkedInStudentIds.has(s.id)),
+    [classStudents, checkedInStudentIds]
+  );
+
+  // CSV export for teacher's class
+  function handleExportCSV() {
+    if (!event) return;
+
+    if (event.track_family) {
+      // Export family attendance detail
+      const headers = ["学生姓名", "出席者姓名", "身份证号码", "关系", "状态"];
+      const rows: string[][] = [];
+
+      for (const group of familyGroups) {
+        const { family, students: children } = group;
+        const childNames = children.map((c) => c.name).join("、");
+        const record = familyAttendance.find((fa) => fa.family_id === family.id);
+
+        if (record) {
+          const attendees = (record.attendees as unknown as AttendeeEntry[]) ?? [];
+          if (attendees.length > 0) {
+            for (const att of attendees) {
+              rows.push([childNames, att.name || "-", att.ic || "-", att.relationship || att.type || "-", "已出席"]);
+            }
+          } else {
+            rows.push([childNames, record.attendee_name || "-", record.attendee_ic || "-", record.attendee_relationship || record.attendee_type || "-", "已出席"]);
+          }
+        } else {
+          rows.push([childNames, "-", "-", "-", "未出席"]);
+        }
+      }
+
+      downloadCSV(headers, rows, `${event.name}-${teacher!.class_name}-家庭出席.csv`);
+    } else if (event.track_student) {
+      // Export student attendance
+      const headers = ["学生姓名", "状态"];
+      const rows = classStudents.map((s) => [
+        s.name,
+        checkedInStudentIds.has(s.id) ? "已出席" : "未出席",
+      ]);
+      downloadCSV(headers, rows, `${event.name}-${teacher!.class_name}-学生出席.csv`);
+    }
+  }
+
+  function downloadCSV(headers: string[], rows: string[][], filename: string) {
+    const escapeCsv = (s: string) =>
+      s.includes(",") || s.includes('"') ? `"${s.replace(/"/g, '""')}"` : s;
+    const csv =
+      "\uFEFF" + [headers, ...rows].map((r) => r.map(escapeCsv).join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
 
   const filteredStudents = useMemo(() => {
     if (!studentOnly) return [];
@@ -309,7 +384,7 @@ export default function TeacherCheckInPage() {
   }
 
   return (
-    <div className="touch-manipulation space-y-6">
+    <div className="touch-manipulation space-y-4">
       {/* Header */}
       <div className="flex items-center gap-2">
         <Button
@@ -328,248 +403,394 @@ export default function TeacherCheckInPage() {
         </div>
       </div>
 
-      {/* Sticky progress bar */}
-      <div className="sticky top-14 z-10 -mx-1 rounded-lg bg-background/95 px-1 py-2 backdrop-blur-sm md:top-0">
-        {event.track_family && (
-          <div>
-            <div className="flex items-center justify-between text-sm">
-              <span className="font-medium">家庭 {checkedInFamilies}/{totalFamilies}</span>
-              <span className="font-medium text-muted-foreground">
-                {totalFamilies > 0 ? Math.round((checkedInFamilies / totalFamilies) * 100) : 0}%
-              </span>
-            </div>
-            <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-muted">
-              <div
-                className="h-full rounded-full bg-primary transition-all duration-500"
-                style={{ width: `${totalFamilies > 0 ? Math.round((checkedInFamilies / totalFamilies) * 100) : 0}%` }}
-              />
-            </div>
-          </div>
-        )}
-        {event.track_student && (
-          <div className={event.track_family ? "mt-2" : ""}>
-            <div className="flex items-center justify-between text-sm">
-              <span className="font-medium">学生 {checkedInStudents}/{totalStudents}</span>
-              <span className="font-medium text-muted-foreground">
-                {totalStudents > 0 ? Math.round((checkedInStudents / totalStudents) * 100) : 0}%
-              </span>
-            </div>
-            <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-muted">
-              <div
-                className="h-full rounded-full bg-primary transition-all duration-500"
-                style={{ width: `${totalStudents > 0 ? Math.round((checkedInStudents / totalStudents) * 100) : 0}%` }}
-              />
-            </div>
-          </div>
-        )}
-      </div>
+      <Tabs defaultValue="checkin">
+        <TabsList>
+          <TabsTrigger value="checkin">签到</TabsTrigger>
+          <TabsTrigger value="detail">出席详情</TabsTrigger>
+        </TabsList>
 
-      {/* Search bar */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          placeholder="搜索学生或家长姓名..."
-          aria-label="搜索学生或家长姓名"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="min-h-[44px] pl-9"
-          autoComplete="off"
-          autoCorrect="off"
-        />
-      </div>
-
-      {/* Student-only mode: direct toggle per student */}
-      {studentOnly ? (
-        <div className="space-y-1.5">
-          {filteredStudents.length === 0 ? (
-            <div className="flex h-32 flex-col items-center justify-center gap-2 text-sm text-muted-foreground">
-              <CheckCircle2 className="size-8" />
-              无匹配结果
-            </div>
-          ) : (
-            filteredStudents.map((student) => {
-              const isCheckedIn = checkedInStudentIds.has(student.id);
-              const isToggling = togglingStudentIds.has(student.id);
-              return (
-                <label
-                  key={student.id}
-                  className={`flex min-h-[52px] cursor-pointer items-center gap-3 rounded-lg border p-3 transition-all duration-200 active:scale-[0.98] ${
-                    isCheckedIn
-                      ? "border-green-200 bg-green-50/50 dark:border-green-900 dark:bg-green-950/20"
-                      : "border-primary/20 bg-background hover:border-primary/40 hover:shadow-sm"
-                  }`}
-                >
-                  {isToggling ? (
-                    <Loader2 className="size-5 shrink-0 animate-spin text-muted-foreground" />
-                  ) : (
-                    <Checkbox
-                      checked={isCheckedIn}
-                      onCheckedChange={() => handleToggleStudent(student.id, isCheckedIn)}
-                      disabled={isToggling}
-                      className="size-5"
-                    />
-                  )}
-                  <span className={isCheckedIn ? "font-medium" : ""}>
-                    {student.name}
+        {/* Tab 1: Check-in */}
+        <TabsContent value="checkin" className="space-y-6">
+          {/* Sticky progress bar */}
+          <div className="sticky top-14 z-10 -mx-1 rounded-lg bg-background/95 px-1 py-2 backdrop-blur-sm md:top-0">
+            {event.track_family && (
+              <div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="font-medium">家庭 {checkedInFamilies}/{totalFamilies}</span>
+                  <span className="font-medium text-muted-foreground">
+                    {totalFamilies > 0 ? Math.round((checkedInFamilies / totalFamilies) * 100) : 0}%
                   </span>
-                </label>
-              );
-            })
-          )}
-        </div>
-      ) : (
-        <>
-          {/* Family list — children's names first */}
-          <div className="space-y-2">
-            {filteredFamilies.length === 0 ? (
-              <div className="flex h-32 flex-col items-center justify-center gap-2 text-sm text-muted-foreground">
-                <CheckCircle2 className="size-8" />
-                无匹配结果
-              </div>
-            ) : (
-              filteredFamilies.map((group) => {
-                const { family, students: children } = group;
-                const { familyDone, studentsDone, allDone } = getFamilyStatus(group);
-                const attendance = familyAttendanceMap.get(family.id);
-                const isCheckedInByOther = attendance && attendance.class_name !== teacher.class_name;
-
-                return (
+                </div>
+                <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-muted">
                   <div
-                    key={family.id}
-                    className={`flex min-h-[60px] cursor-pointer items-center justify-between gap-3 rounded-lg border p-3 transition-all duration-200 active:scale-[0.98] ${
-                      allDone
-                        ? "border-green-200 bg-green-50/50 dark:border-green-900 dark:bg-green-950/20"
-                        : "border-primary/20 bg-background hover:border-primary/40 hover:shadow-sm active:bg-muted/50"
-                    }`}
-                    onClick={() => {
-                      setSelectedFamily(group);
-                      setDialogOpen(true);
-                    }}
-                  >
-                    <div className="min-w-0 flex-1">
-                      {/* Children's names — primary display */}
-                      <p className={`font-medium ${allDone ? "text-muted-foreground" : ""}`}>
-                        {children.map((c) => c.name).join("、")}
-                      </p>
-                      {/* Guardian name — secondary */}
-                      <p className="mt-0.5 text-xs text-muted-foreground">
-                        {family.guardian1_name}
-                        {family.guardian2_name ? ` / ${family.guardian2_name}` : ""}
-                      </p>
-                      {/* Status badges */}
-                      <div className="mt-1.5 flex flex-wrap gap-1">
-                        {event.track_family && familyDone && (
-                          <Badge variant="outline" className="gap-1 border-green-300 text-xs text-green-700 dark:border-green-800 dark:text-green-400">
-                            <CheckCircle2 className="size-3" />
-                            家长
-                          </Badge>
-                        )}
-                        {event.track_student && children.map((c) => (
-                          checkedInStudentIds.has(c.id) && (
-                            <Badge key={c.id} variant="outline" className="gap-1 border-green-300 text-xs text-green-700 dark:border-green-800 dark:text-green-400">
-                              <CheckCircle2 className="size-3" />
-                              {c.name}
-                            </Badge>
-                          )
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="flex shrink-0 items-center gap-1">
-                      {familyDone && attendance && attendance.class_name === teacher.class_name && event.track_family && (
-                        <>
-                          <span className="text-xs text-muted-foreground">
-                            {new Date(attendance.checked_in_at).toLocaleTimeString("zh-CN", {
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })}
-                          </span>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="min-h-[44px] min-w-[44px] text-muted-foreground hover:text-destructive"
-                            disabled={undoingFamilyIds.has(family.id)}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleUndoFamilyCheckIn(family.id);
-                            }}
-                            aria-label="撤回家长签到"
-                          >
-                            {undoingFamilyIds.has(family.id) ? (
-                              <Loader2 className="size-4 animate-spin" />
-                            ) : (
-                              <Undo2 className="size-4" />
-                            )}
-                          </Button>
-                        </>
-                      )}
-                      {isCheckedInByOther && (
-                        <Badge variant="secondary" className="text-xs">
-                          已由 {attendance.class_name} 签到
-                        </Badge>
-                      )}
-                      {!allDone ? (
-                        <Button
-                          size="sm"
-                          className="min-h-[36px] gap-1.5"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedFamily(group);
-                            setDialogOpen(true);
-                          }}
-                        >
-                          <UserCheck className="size-3.5" />
-                          签到
-                        </Button>
-                      ) : (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="min-h-[36px] gap-1 text-muted-foreground"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedFamily(group);
-                            setDialogOpen(true);
-                          }}
-                        >
-                          <Pencil className="size-3" />
-                          编辑
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                );
-              })
+                    className="h-full rounded-full bg-primary transition-all duration-500"
+                    style={{ width: `${totalFamilies > 0 ? Math.round((checkedInFamilies / totalFamilies) * 100) : 0}%` }}
+                  />
+                </div>
+              </div>
+            )}
+            {event.track_student && (
+              <div className={event.track_family ? "mt-2" : ""}>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="font-medium">学生 {checkedInStudents}/{totalStudents}</span>
+                  <span className="font-medium text-muted-foreground">
+                    {totalStudents > 0 ? Math.round((checkedInStudents / totalStudents) * 100) : 0}%
+                  </span>
+                </div>
+                <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-muted">
+                  <div
+                    className="h-full rounded-full bg-primary transition-all duration-500"
+                    style={{ width: `${totalStudents > 0 ? Math.round((checkedInStudents / totalStudents) * 100) : 0}%` }}
+                  />
+                </div>
+              </div>
             )}
           </div>
 
-          {/* Check-in dialog */}
-          {selectedFamily && (
-            <FamilyCheckInDialog
-              open={dialogOpen}
-              onOpenChange={setDialogOpen}
-              family={{
-                id: selectedFamily.family.id,
-                guardian1_name: selectedFamily.family.guardian1_name,
-                guardian1_relationship: selectedFamily.family.guardian1_relationship,
-                guardian1_ic: selectedFamily.family.guardian1_ic,
-                guardian2_name: selectedFamily.family.guardian2_name,
-                guardian2_relationship: selectedFamily.family.guardian2_relationship,
-                guardian2_ic: selectedFamily.family.guardian2_ic,
-              }}
-              students={selectedFamily.students.map((s) => ({ id: s.id, name: s.name }))}
-              eventId={eventId}
-              className={teacher.class_name!}
-              teacherId={teacher.id}
-              trackFamily={event.track_family}
-              trackStudent={event.track_student}
-              checkedInStudentIds={checkedInStudentIds}
-              familyAlreadyCheckedIn={familyAttendanceMap.has(selectedFamily.family.id)}
-              onSuccess={refetchAttendance}
+          {/* Search bar */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="搜索学生或家长姓名..."
+              aria-label="搜索学生或家长姓名"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="min-h-[44px] pl-9"
+              autoComplete="off"
+              autoCorrect="off"
             />
+          </div>
+
+          {/* Student-only mode: direct toggle per student */}
+          {studentOnly ? (
+            <div className="space-y-1.5">
+              {filteredStudents.length === 0 ? (
+                <div className="flex h-32 flex-col items-center justify-center gap-2 text-sm text-muted-foreground">
+                  <CheckCircle2 className="size-8" />
+                  无匹配结果
+                </div>
+              ) : (
+                filteredStudents.map((student) => {
+                  const isCheckedIn = checkedInStudentIds.has(student.id);
+                  const isToggling = togglingStudentIds.has(student.id);
+                  return (
+                    <label
+                      key={student.id}
+                      className={`flex min-h-[52px] cursor-pointer items-center gap-3 rounded-lg border p-3 transition-all duration-200 active:scale-[0.98] ${
+                        isCheckedIn
+                          ? "border-green-200 bg-green-50/50 dark:border-green-900 dark:bg-green-950/20"
+                          : "border-primary/20 bg-background hover:border-primary/40 hover:shadow-sm"
+                      }`}
+                    >
+                      {isToggling ? (
+                        <Loader2 className="size-5 shrink-0 animate-spin text-muted-foreground" />
+                      ) : (
+                        <Checkbox
+                          checked={isCheckedIn}
+                          onCheckedChange={() => handleToggleStudent(student.id, isCheckedIn)}
+                          disabled={isToggling}
+                          className="size-5"
+                        />
+                      )}
+                      <span className={isCheckedIn ? "font-medium" : ""}>
+                        {student.name}
+                      </span>
+                    </label>
+                  );
+                })
+              )}
+            </div>
+          ) : (
+            <>
+              {/* Family list */}
+              <div className="space-y-2">
+                {filteredFamilies.length === 0 ? (
+                  <div className="flex h-32 flex-col items-center justify-center gap-2 text-sm text-muted-foreground">
+                    <CheckCircle2 className="size-8" />
+                    无匹配结果
+                  </div>
+                ) : (
+                  filteredFamilies.map((group) => {
+                    const { family, students: children } = group;
+                    const { familyDone, studentsDone, allDone } = getFamilyStatus(group);
+                    const attendance = familyAttendanceMap.get(family.id);
+                    const isCheckedInByOther = attendance && attendance.class_name !== teacher.class_name;
+
+                    return (
+                      <div
+                        key={family.id}
+                        className={`flex min-h-[60px] cursor-pointer items-center justify-between gap-3 rounded-lg border p-3 transition-all duration-200 active:scale-[0.98] ${
+                          allDone
+                            ? "border-green-200 bg-green-50/50 dark:border-green-900 dark:bg-green-950/20"
+                            : "border-primary/20 bg-background hover:border-primary/40 hover:shadow-sm active:bg-muted/50"
+                        }`}
+                        onClick={() => {
+                          setSelectedFamily(group);
+                          setDialogOpen(true);
+                        }}
+                      >
+                        <div className="min-w-0 flex-1">
+                          <p className={`font-medium ${allDone ? "text-muted-foreground" : ""}`}>
+                            {children.map((c) => c.name).join("、")}
+                          </p>
+                          <p className="mt-0.5 text-xs text-muted-foreground">
+                            {family.guardian1_name}
+                            {family.guardian2_name ? ` / ${family.guardian2_name}` : ""}
+                          </p>
+                          <div className="mt-1.5 flex flex-wrap gap-1">
+                            {event.track_family && familyDone && (
+                              <Badge variant="outline" className="gap-1 border-green-300 text-xs text-green-700 dark:border-green-800 dark:text-green-400">
+                                <CheckCircle2 className="size-3" />
+                                家长
+                              </Badge>
+                            )}
+                            {event.track_student && children.map((c) => (
+                              checkedInStudentIds.has(c.id) && (
+                                <Badge key={c.id} variant="outline" className="gap-1 border-green-300 text-xs text-green-700 dark:border-green-800 dark:text-green-400">
+                                  <CheckCircle2 className="size-3" />
+                                  {c.name}
+                                </Badge>
+                              )
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="flex shrink-0 items-center gap-1">
+                          {familyDone && attendance && attendance.class_name === teacher.class_name && event.track_family && (
+                            <>
+                              <span className="text-xs text-muted-foreground">
+                                {new Date(attendance.checked_in_at).toLocaleTimeString("zh-CN", {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}
+                              </span>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="min-h-[44px] min-w-[44px] text-muted-foreground hover:text-destructive"
+                                disabled={undoingFamilyIds.has(family.id)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleUndoFamilyCheckIn(family.id);
+                                }}
+                                aria-label="撤回家长签到"
+                              >
+                                {undoingFamilyIds.has(family.id) ? (
+                                  <Loader2 className="size-4 animate-spin" />
+                                ) : (
+                                  <Undo2 className="size-4" />
+                                )}
+                              </Button>
+                            </>
+                          )}
+                          {isCheckedInByOther && (
+                            <Badge variant="secondary" className="text-xs">
+                              已由 {attendance.class_name} 签到
+                            </Badge>
+                          )}
+                          {!allDone ? (
+                            <Button
+                              size="sm"
+                              className="min-h-[36px] gap-1.5"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedFamily(group);
+                                setDialogOpen(true);
+                              }}
+                            >
+                              <UserCheck className="size-3.5" />
+                              签到
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="min-h-[36px] gap-1 text-muted-foreground"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedFamily(group);
+                                setDialogOpen(true);
+                              }}
+                            >
+                              <Pencil className="size-3" />
+                              编辑
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+
+              {/* Check-in dialog */}
+              {selectedFamily && (
+                <FamilyCheckInDialog
+                  open={dialogOpen}
+                  onOpenChange={setDialogOpen}
+                  family={{
+                    id: selectedFamily.family.id,
+                    guardian1_name: selectedFamily.family.guardian1_name,
+                    guardian1_relationship: selectedFamily.family.guardian1_relationship,
+                    guardian1_ic: selectedFamily.family.guardian1_ic,
+                    guardian2_name: selectedFamily.family.guardian2_name,
+                    guardian2_relationship: selectedFamily.family.guardian2_relationship,
+                    guardian2_ic: selectedFamily.family.guardian2_ic,
+                  }}
+                  students={selectedFamily.students.map((s) => ({ id: s.id, name: s.name }))}
+                  eventId={eventId}
+                  className={teacher.class_name!}
+                  teacherId={teacher.id}
+                  trackFamily={event.track_family}
+                  trackStudent={event.track_student}
+                  checkedInStudentIds={checkedInStudentIds}
+                  familyAlreadyCheckedIn={familyAttendanceMap.has(selectedFamily.family.id)}
+                  onSuccess={refetchAttendance}
+                />
+              )}
+            </>
           )}
-        </>
-      )}
+        </TabsContent>
+
+        {/* Tab 2: Attendance Detail */}
+        <TabsContent value="detail" className="space-y-6">
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-muted-foreground">
+              {teacher.class_name} 班出席详情
+            </p>
+            <Button size="sm" onClick={handleExportCSV}>
+              <FileDown className="size-4" />
+              导出 CSV
+            </Button>
+          </div>
+
+          {/* Family attendance detail */}
+          {event.track_family && (
+            <div className="space-y-4">
+              {/* Attended */}
+              <div>
+                <h3 className="mb-2 text-sm font-semibold text-green-700 dark:text-green-400">
+                  已出席 ({checkedInFamilies})
+                </h3>
+                {checkedInFamilies === 0 ? (
+                  <p className="text-xs text-muted-foreground">暂无签到记录</p>
+                ) : (
+                  <div className="overflow-x-auto rounded-lg border">
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="border-b bg-muted/50">
+                          <th className="px-3 py-2 text-left font-medium">学生</th>
+                          <th className="px-3 py-2 text-left font-medium">出席者</th>
+                          <th className="px-3 py-2 text-left font-medium">身份证号</th>
+                          <th className="px-3 py-2 text-left font-medium">关系</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {familyGroups
+                          .filter(({ family }) => familyAttendanceMap.has(family.id))
+                          .flatMap(({ family, students: children }) => {
+                            const record = familyAttendance.find((fa) => fa.family_id === family.id);
+                            if (!record) return [];
+                            const childNames = children.map((c) => c.name).join("、");
+                            const attendees = (record.attendees as unknown as AttendeeEntry[]) ?? [];
+
+                            if (attendees.length > 0) {
+                              return attendees.map((att, i) => (
+                                <tr key={`${family.id}-${i}`} className="border-b">
+                                  <td className="px-3 py-2">{i === 0 ? childNames : ""}</td>
+                                  <td className="px-3 py-2 font-medium">{att.name || "-"}</td>
+                                  <td className="px-3 py-2 font-mono">{att.ic || "-"}</td>
+                                  <td className="px-3 py-2">{att.relationship || att.type || "-"}</td>
+                                </tr>
+                              ));
+                            }
+                            return [(
+                              <tr key={family.id} className="border-b">
+                                <td className="px-3 py-2">{childNames}</td>
+                                <td className="px-3 py-2 font-medium">{record.attendee_name || "-"}</td>
+                                <td className="px-3 py-2 font-mono">{record.attendee_ic || "-"}</td>
+                                <td className="px-3 py-2">{record.attendee_relationship || record.attendee_type || "-"}</td>
+                              </tr>
+                            )];
+                          })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+
+              {/* Not attended */}
+              <div>
+                <h3 className="mb-2 text-sm font-semibold text-destructive">
+                  未出席 ({notCheckedInFamilies.length})
+                </h3>
+                {notCheckedInFamilies.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">全部已出席</p>
+                ) : (
+                  <div className="space-y-1">
+                    {notCheckedInFamilies.map(({ family, students: children }) => (
+                      <div
+                        key={family.id}
+                        className="flex items-center justify-between rounded-lg border border-destructive/20 px-3 py-2"
+                      >
+                        <div>
+                          <p className="text-sm font-medium">{children.map((c) => c.name).join("、")}</p>
+                          <p className="text-xs text-muted-foreground">{family.guardian1_name}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Student attendance detail */}
+          {event.track_student && (
+            <div className="space-y-4">
+              {event.track_family && <hr className="border-muted" />}
+
+              {/* Attended students */}
+              <div>
+                <h3 className="mb-2 text-sm font-semibold text-green-700 dark:text-green-400">
+                  已出席学生 ({checkedInStudents})
+                </h3>
+                {checkedInStudents === 0 ? (
+                  <p className="text-xs text-muted-foreground">暂无签到记录</p>
+                ) : (
+                  <div className="flex flex-wrap gap-1.5">
+                    {classStudents
+                      .filter((s) => checkedInStudentIds.has(s.id))
+                      .map((s) => (
+                        <Badge key={s.id} variant="outline" className="border-green-300 text-green-700 dark:border-green-800 dark:text-green-400">
+                          {s.name}
+                        </Badge>
+                      ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Not attended students */}
+              <div>
+                <h3 className="mb-2 text-sm font-semibold text-destructive">
+                  未出席学生 ({notCheckedInStudents.length})
+                </h3>
+                {notCheckedInStudents.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">全部已出席</p>
+                ) : (
+                  <div className="flex flex-wrap gap-1.5">
+                    {notCheckedInStudents.map((s) => (
+                      <Badge key={s.id} variant="outline" className="border-destructive/30 text-destructive">
+                        {s.name}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
