@@ -178,6 +178,12 @@ export default function TeacherCheckInPage() {
     (s) => checkedInStudentIds.has(s.id)
   ).length;
 
+  // 总出席率: count students whose family has checked in (denominator = total students)
+  const studentsWithFamilyCheckedIn = classStudents.filter(
+    (s) => s.family_id && familyAttendanceMap.has(s.family_id)
+  ).length;
+  const overallRate = totalStudents > 0 ? Math.round((studentsWithFamilyCheckedIn / totalStudents) * 100) : 0;
+
   // Determine completion status per family
   function getFamilyStatus(group: FamilyGroup) {
     const familyDone = !event?.track_family || familyAttendanceMap.has(group.family.id);
@@ -416,22 +422,22 @@ export default function TeacherCheckInPage() {
             {event.track_family && (
               <div>
                 <div className="flex items-center justify-between text-sm">
-                  <span className="font-medium">家庭 {totalFamilies > 0 ? Math.round((checkedInFamilies / totalFamilies) * 100) : 0}%</span>
+                  <span className="font-medium">总出席 {overallRate}%</span>
                   <span className="text-sm text-muted-foreground">
-                    {checkedInFamilies}/{totalFamilies}
+                    {studentsWithFamilyCheckedIn}/{totalStudents}
                   </span>
                 </div>
                 <div
                   className="mt-1 h-2 w-full overflow-hidden rounded-full bg-muted"
                   role="progressbar"
-                  aria-valuenow={totalFamilies > 0 ? Math.round((checkedInFamilies / totalFamilies) * 100) : 0}
+                  aria-valuenow={overallRate}
                   aria-valuemin={0}
                   aria-valuemax={100}
-                  aria-label={`家庭签到进度 ${checkedInFamilies}/${totalFamilies}`}
+                  aria-label={`总出席进度 ${studentsWithFamilyCheckedIn}/${totalStudents}`}
                 >
                   <div
                     className="h-full rounded-full bg-primary transition-all duration-500"
-                    style={{ width: `${totalFamilies > 0 ? Math.round((checkedInFamilies / totalFamilies) * 100) : 0}%` }}
+                    style={{ width: `${overallRate}%` }}
                   />
                 </div>
               </div>

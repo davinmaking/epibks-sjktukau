@@ -68,14 +68,23 @@ export default function TeacherDashboardPage() {
     [classStudents]
   );
 
-  // Count checked-in families for this class
-  const checkedInFamilies = useMemo(() => {
-    let count = 0;
+  // Set of checked-in family IDs relevant to this class
+  const checkedInFamilyIds = useMemo(() => {
+    const set = new Set<string>();
     for (const fa of familyAttendance) {
-      if (classFamilyIds.has(fa.family_id)) count++;
+      if (classFamilyIds.has(fa.family_id)) set.add(fa.family_id);
+    }
+    return set;
+  }, [familyAttendance, classFamilyIds]);
+
+  // Count students whose family has checked in (总出席率 denominator = total students)
+  const studentsWithFamilyCheckedIn = useMemo(() => {
+    let count = 0;
+    for (const s of classStudents) {
+      if (s.family_id && checkedInFamilyIds.has(s.family_id)) count++;
     }
     return count;
-  }, [familyAttendance, classFamilyIds]);
+  }, [classStudents, checkedInFamilyIds]);
 
   // Count checked-in students for this class
   const classStudentIds = useMemo(
@@ -90,17 +99,17 @@ export default function TeacherDashboardPage() {
     return count;
   }, [studentAttendance, classStudentIds]);
 
-  // Pie chart data — simple 2 slices: checked-in vs not
+  // Pie chart data — simple 2 slices: checked-in vs not (based on student count)
   const familyPieData = useMemo(() => {
     if (!ongoingEvent?.track_family) return null;
-    const total = classFamilyIds.size;
-    const notCheckedIn = total - checkedInFamilies;
+    const total = classStudents.length;
+    const notCheckedIn = total - studentsWithFamilyCheckedIn;
     if (total === 0) return null;
     return [
-      { status: "checkedIn", count: checkedInFamilies, fill: CHECKED_IN_COLOR },
+      { status: "checkedIn", count: studentsWithFamilyCheckedIn, fill: CHECKED_IN_COLOR },
       { status: "notCheckedIn", count: Math.max(0, notCheckedIn), fill: NOT_CHECKED_IN_COLOR },
     ];
-  }, [ongoingEvent?.track_family, classFamilyIds.size, checkedInFamilies]);
+  }, [ongoingEvent?.track_family, classStudents.length, studentsWithFamilyCheckedIn]);
 
   const studentPieData = useMemo(() => {
     if (!ongoingEvent?.track_student) return null;
@@ -199,8 +208,8 @@ export default function TeacherDashboardPage() {
   }
 
   const familyRate =
-    classFamilyIds.size > 0
-      ? Math.round((checkedInFamilies / classFamilyIds.size) * 100)
+    classStudents.length > 0
+      ? Math.round((studentsWithFamilyCheckedIn / classStudents.length) * 100)
       : 0;
   const studentRate =
     classStudents.length > 0
@@ -283,7 +292,7 @@ export default function TeacherDashboardPage() {
                   {ongoingEvent.track_family && familyPieData && (
                     <Card>
                       <CardHeader className="items-center pb-0">
-                        <CardTitle className="text-sm">家庭出席率</CardTitle>
+                        <CardTitle className="text-sm">总出席率</CardTitle>
                       </CardHeader>
                       <CardContent className="flex-1 pb-0">
                         <ChartContainer
@@ -299,7 +308,7 @@ export default function TeacherDashboardPage() {
                       <div className="p-4 pt-2 text-center">
                         <p className="text-2xl font-bold">{familyRate}%</p>
                         <p className="text-xs text-muted-foreground">
-                          {checkedInFamilies}/{classFamilyIds.size} 家庭已签到
+                          {studentsWithFamilyCheckedIn}/{classStudents.length} 已出席
                         </p>
                       </div>
                     </Card>

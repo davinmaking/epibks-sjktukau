@@ -96,13 +96,21 @@ export default function TeacherEventsPage() {
           event.included_classes.includes(teacher!.class_name!)
       );
 
-      const eventsWithRates: EventWithRate[] = relevantEvents.map((event) => ({
-        ...event,
-        checkedInFamilies: familyCountByEvent.get(event.id)?.size ?? 0,
-        totalFamilies,
-        checkedInStudents: studentCountByEvent.get(event.id)?.size ?? 0,
-        totalStudents,
-      }));
+      const eventsWithRates: EventWithRate[] = relevantEvents.map((event) => {
+        // Count students whose family has checked in for this event
+        const checkedInFamilyIdsForEvent = familyCountByEvent.get(event.id) ?? new Set();
+        const studentsWithFamilyCheckedIn = studentsList.filter(
+          (s) => s.family_id && checkedInFamilyIdsForEvent.has(s.family_id)
+        ).length;
+
+        return {
+          ...event,
+          checkedInFamilies: studentsWithFamilyCheckedIn,
+          totalFamilies: totalStudents,
+          checkedInStudents: studentCountByEvent.get(event.id)?.size ?? 0,
+          totalStudents,
+        };
+      });
 
       setEvents(eventsWithRates);
       setLoading(false);
@@ -193,7 +201,7 @@ export default function TeacherEventsPage() {
                   {event.track_family && event.totalFamilies > 0 && (
                     <div className="space-y-1">
                       <div className="flex items-center justify-between text-xs">
-                        <span className="text-muted-foreground">家庭出席</span>
+                        <span className="text-muted-foreground">总出席</span>
                         <span className="font-medium">
                           {familyRate}% ({event.checkedInFamilies}/{event.totalFamilies})
                         </span>
