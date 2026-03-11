@@ -723,130 +723,169 @@ export default function EventDetailPage() {
                 导出 CSV
               </Button>
             </div>
-            <p className="text-sm text-muted-foreground">
-              各班出席家长/监护人详情，含学生姓名
-            </p>
-
-            {!showFamily ? (
+            {!showFamily && !showStudent ? (
               <div className="flex h-40 items-center justify-center text-muted-foreground">
-                <p>该活动未追踪家庭出席</p>
+                <p>该活动未追踪出席</p>
               </div>
             ) : (
-              <div className="space-y-6">
-                {includedClassNames.map((className) => {
-                  const classStudents = includedStudents.filter(
-                    (s) => s.class_name === className
-                  );
-                  const classRecords = familyAttendance.filter(
-                    (fa) => fa.class_name === className
-                  );
-                  // Sibling sync
-                  const classFamilyIds = new Set(
-                    classStudents
-                      .filter((s) => s.family_id)
-                      .map((s) => s.family_id!)
-                  );
-                  const siblingRecords = familyAttendance.filter(
-                    (fa) =>
-                      fa.class_name !== className &&
-                      classFamilyIds.has(fa.family_id)
-                  );
-                  const allRecords = [...classRecords, ...siblingRecords];
+              <div className="space-y-8">
+                {/* Family attendance detail */}
+                {showFamily && (
+                  <div className="space-y-6">
+                    <p className="text-sm text-muted-foreground">
+                      各班出席家长/监护人详情，含学生姓名
+                    </p>
+                    {includedClassNames.map((className) => {
+                      const classStudents = includedStudents.filter(
+                        (s) => s.class_name === className
+                      );
+                      const classRecords = familyAttendance.filter(
+                        (fa) => fa.class_name === className
+                      );
+                      // Sibling sync
+                      const classFamilyIds = new Set(
+                        classStudents
+                          .filter((s) => s.family_id)
+                          .map((s) => s.family_id!)
+                      );
+                      const siblingRecords = familyAttendance.filter(
+                        (fa) =>
+                          fa.class_name !== className &&
+                          classFamilyIds.has(fa.family_id)
+                      );
+                      const allRecords = [...classRecords, ...siblingRecords];
 
-                  return (
-                    <div key={className}>
-                      <h3 className="mb-2 text-sm font-semibold">
-                        {className}
-                        <span className="ml-2 font-normal text-muted-foreground">
-                          ({allRecords.length > 0
-                            ? `${allRecords.length} 条记录`
-                            : "暂无签到"})
-                        </span>
-                      </h3>
-                      {allRecords.length === 0 ? (
-                        <p className="text-xs text-muted-foreground pb-2">
-                          暂无签到记录
-                        </p>
-                      ) : (
-                        <div className="overflow-x-auto rounded-lg border">
-                          <table className="w-full table-fixed text-xs">
-                            <colgroup>
-                              <col className="w-[36px]" />
-                              <col className="w-[18%]" />
-                              <col className="w-[28%]" />
-                              <col className="w-[22%]" />
-                              <col className="w-[14%]" />
-                              <col className="w-[14%]" />
-                            </colgroup>
-                            <thead>
-                              <tr className="border-b bg-muted/50">
-                                <th className="whitespace-nowrap px-3 py-2 text-left font-medium">
-                                  #
-                                </th>
-                                <th className="px-3 py-2 text-left font-medium">
-                                  学生
-                                </th>
-                                <th className="px-3 py-2 text-left font-medium">
-                                  出席者姓名
-                                </th>
-                                <th className="px-3 py-2 text-left font-medium">
-                                  身份证号码
-                                </th>
-                                <th className="px-3 py-2 text-left font-medium">
-                                  关系
-                                </th>
-                                <th className="px-3 py-2 text-left font-medium">
-                                  签到来源
-                                </th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {(() => {
-                                let rowNum = 0;
-                                return allRecords.flatMap((record) => {
-                                  const attendees =
-                                    (record.attendees as unknown as AttendeeEntry[]) ??
-                                    [];
-                                  const isSibling =
-                                    record.class_name !== className;
-                                  const source = isSibling
-                                    ? record.class_name
-                                    : "本班";
-                                  const children =
-                                    familyChildrenMap
-                                      .get(record.family_id)
-                                      ?.filter((name) =>
-                                        classStudents.some(
-                                          (s) =>
-                                            s.name === name &&
-                                            s.family_id === record.family_id
-                                        )
-                                      )
-                                      ?.join("、") ?? "-";
+                      return (
+                        <div key={className}>
+                          <h3 className="mb-2 text-sm font-semibold">
+                            {className}
+                            <span className="ml-2 font-normal text-muted-foreground">
+                              ({allRecords.length > 0
+                                ? `${allRecords.length} 条记录`
+                                : "暂无签到"})
+                            </span>
+                          </h3>
+                          {allRecords.length === 0 ? (
+                            <p className="text-xs text-muted-foreground pb-2">
+                              暂无签到记录
+                            </p>
+                          ) : (
+                            <div className="overflow-x-auto rounded-lg border">
+                              <table className="w-full table-fixed text-xs">
+                                <colgroup>
+                                  <col className="w-[36px]" />
+                                  <col className="w-[18%]" />
+                                  <col className="w-[28%]" />
+                                  <col className="w-[22%]" />
+                                  <col className="w-[14%]" />
+                                  <col className="w-[14%]" />
+                                </colgroup>
+                                <thead>
+                                  <tr className="border-b bg-muted/50">
+                                    <th className="whitespace-nowrap px-3 py-2 text-left font-medium">
+                                      #
+                                    </th>
+                                    <th className="px-3 py-2 text-left font-medium">
+                                      学生
+                                    </th>
+                                    <th className="px-3 py-2 text-left font-medium">
+                                      出席者姓名
+                                    </th>
+                                    <th className="px-3 py-2 text-left font-medium">
+                                      身份证号码
+                                    </th>
+                                    <th className="px-3 py-2 text-left font-medium">
+                                      关系
+                                    </th>
+                                    <th className="px-3 py-2 text-left font-medium">
+                                      签到来源
+                                    </th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {(() => {
+                                    let rowNum = 0;
+                                    return allRecords.flatMap((record) => {
+                                      const attendees =
+                                        (record.attendees as unknown as AttendeeEntry[]) ??
+                                        [];
+                                      const isSibling =
+                                        record.class_name !== className;
+                                      const source = isSibling
+                                        ? record.class_name
+                                        : "本班";
+                                      const children =
+                                        familyChildrenMap
+                                          .get(record.family_id)
+                                          ?.filter((name) =>
+                                            classStudents.some(
+                                              (s) =>
+                                                s.name === name &&
+                                                s.family_id === record.family_id
+                                            )
+                                          )
+                                          ?.join("、") ?? "-";
 
-                                  if (attendees.length > 0) {
-                                    return attendees.map((att, i) => {
+                                      if (attendees.length > 0) {
+                                        return attendees.map((att, i) => {
+                                          rowNum++;
+                                          return (
+                                            <tr
+                                              key={`${record.id}-${i}`}
+                                              className="border-b"
+                                            >
+                                              <td className="whitespace-nowrap px-3 py-2 text-muted-foreground">
+                                                {rowNum}
+                                              </td>
+                                              <td className="truncate px-3 py-2" title={i === 0 ? children : ""}>
+                                                {i === 0 ? children : ""}
+                                              </td>
+                                              <td className="truncate px-3 py-2 font-medium" title={att.name || "-"}>
+                                                {att.name || "-"}
+                                              </td>
+                                              <td className="whitespace-nowrap px-3 py-2 font-mono">
+                                                {att.ic || "-"}
+                                              </td>
+                                              <td className="whitespace-nowrap px-3 py-2">
+                                                {att.relationship ||
+                                                  att.type ||
+                                                  "-"}
+                                              </td>
+                                              <td className="whitespace-nowrap px-3 py-2">
+                                                {isSibling ? (
+                                                  <span className="text-chart-2">
+                                                    {source}
+                                                  </span>
+                                                ) : (
+                                                  source
+                                                )}
+                                              </td>
+                                            </tr>
+                                          );
+                                        });
+                                      }
+
                                       rowNum++;
-                                      return (
+                                      return [
                                         <tr
-                                          key={`${record.id}-${i}`}
+                                          key={record.id}
                                           className="border-b"
                                         >
                                           <td className="whitespace-nowrap px-3 py-2 text-muted-foreground">
                                             {rowNum}
                                           </td>
-                                          <td className="truncate px-3 py-2" title={i === 0 ? children : ""}>
-                                            {i === 0 ? children : ""}
+                                          <td className="truncate px-3 py-2" title={children}>
+                                            {children}
                                           </td>
-                                          <td className="truncate px-3 py-2 font-medium" title={att.name || "-"}>
-                                            {att.name || "-"}
+                                          <td className="truncate px-3 py-2 font-medium" title={record.attendee_name || "-"}>
+                                            {record.attendee_name || "-"}
                                           </td>
                                           <td className="whitespace-nowrap px-3 py-2 font-mono">
-                                            {att.ic || "-"}
+                                            {record.attendee_ic || "-"}
                                           </td>
                                           <td className="whitespace-nowrap px-3 py-2">
-                                            {att.relationship ||
-                                              att.type ||
+                                            {record.attendee_relationship ||
+                                              record.attendee_type ||
                                               "-"}
                                           </td>
                                           <td className="whitespace-nowrap px-3 py-2">
@@ -858,54 +897,91 @@ export default function EventDetailPage() {
                                               source
                                             )}
                                           </td>
-                                        </tr>
-                                      );
+                                        </tr>,
+                                      ];
                                     });
-                                  }
-
-                                  rowNum++;
-                                  return [
-                                    <tr
-                                      key={record.id}
-                                      className="border-b"
-                                    >
-                                      <td className="whitespace-nowrap px-3 py-2 text-muted-foreground">
-                                        {rowNum}
-                                      </td>
-                                      <td className="truncate px-3 py-2" title={children}>
-                                        {children}
-                                      </td>
-                                      <td className="truncate px-3 py-2 font-medium" title={record.attendee_name || "-"}>
-                                        {record.attendee_name || "-"}
-                                      </td>
-                                      <td className="whitespace-nowrap px-3 py-2 font-mono">
-                                        {record.attendee_ic || "-"}
-                                      </td>
-                                      <td className="whitespace-nowrap px-3 py-2">
-                                        {record.attendee_relationship ||
-                                          record.attendee_type ||
-                                          "-"}
-                                      </td>
-                                      <td className="whitespace-nowrap px-3 py-2">
-                                        {isSibling ? (
-                                          <span className="text-chart-2">
-                                            {source}
-                                          </span>
-                                        ) : (
-                                          source
-                                        )}
-                                      </td>
-                                    </tr>,
-                                  ];
-                                });
-                              })()}
-                            </tbody>
-                          </table>
+                                  })()}
+                                </tbody>
+                              </table>
+                            </div>
+                          )}
                         </div>
-                      )}
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Student attendance detail */}
+                {showStudent && (
+                  <div className="space-y-6">
+                    {showFamily && <hr className="border-muted" />}
+                    <div>
+                      <h2 className="text-lg font-semibold">学生出席详情</h2>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        各班学生出席/缺席名单
+                      </p>
                     </div>
-                  );
-                })}
+                    {includedClassNames.map((className) => {
+                      const classStudents = includedStudents.filter(
+                        (s) => s.class_name === className
+                      );
+                      const checkedInIds = new Set(
+                        studentAttendance
+                          .filter((sa) => classStudents.some((s) => s.id === sa.student_id))
+                          .map((sa) => sa.student_id)
+                      );
+                      const attended = classStudents.filter((s) => checkedInIds.has(s.id));
+                      const absent = classStudents.filter((s) => !checkedInIds.has(s.id));
+                      const pct = classStudents.length > 0
+                        ? Math.round((attended.length / classStudents.length) * 100)
+                        : 0;
+
+                      return (
+                        <div key={className}>
+                          <h3 className="mb-2 text-sm font-semibold">
+                            {className}
+                            <span className="ml-2 font-normal text-muted-foreground">
+                              ({pct}% · {attended.length}/{classStudents.length})
+                            </span>
+                          </h3>
+                          <div className="overflow-x-auto rounded-lg border">
+                            <table className="w-full text-xs">
+                              <thead>
+                                <tr className="border-b bg-muted/50">
+                                  <th className="w-1/2 px-3 py-2 text-left font-medium text-success">
+                                    已出席 ({attended.length})
+                                  </th>
+                                  <th className="w-1/2 px-3 py-2 text-left font-medium text-destructive">
+                                    未出席 ({absent.length})
+                                  </th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {Array.from(
+                                  { length: Math.max(attended.length, absent.length, 1) },
+                                  (_, i) => (
+                                    <tr key={i} className="border-b last:border-b-0">
+                                      <td className="px-3 py-1.5">
+                                        {attended[i] ? (
+                                          <span className="text-success">{attended[i].name}</span>
+                                        ) : ""}
+                                      </td>
+                                      <td className="px-3 py-1.5">
+                                        {absent[i] ? (
+                                          <span className="text-destructive">{absent[i].name}</span>
+                                        ) : ""}
+                                      </td>
+                                    </tr>
+                                  )
+                                )}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             )}
           </TabsContent>
