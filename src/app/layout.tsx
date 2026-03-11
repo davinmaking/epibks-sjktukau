@@ -21,8 +21,8 @@ const notoSansSC = Noto_Sans_SC({
 });
 
 export const metadata: Metadata = {
-  title: "家长出席系统 — SJKC Tukau",
-  description: "SJKC Tukau 家长出席追踪系统",
+  title: "PIBKS出席系统 — 美里都九政府小学",
+  description: "SJK Tukau, Miri — PIBKS出席系统",
 };
 
 export default function RootLayout({

@@ -93,8 +93,8 @@ export function NavSidebar({ role }: NavSidebarProps) {
     <div className="flex h-full flex-col">
       {/* Header */}
       <div className="p-4">
-        <h2 className="text-lg font-semibold">SJKC Tukau</h2>
-        <p className="text-xs text-muted-foreground">家长出席系统</p>
+        <h2 className="text-lg font-semibold">美里都九政府小学</h2>
+        <p className="text-xs text-muted-foreground">PIBKS出席系统</p>
       </div>
 
       <Separator />
@@ -149,7 +149,7 @@ export function NavSidebar({ role }: NavSidebarProps) {
             {sidebarContent}
           </SheetContent>
         </Sheet>
-        <span className="ml-3 text-sm font-semibold">SJKC Tukau</span>
+        <span className="ml-3 text-sm font-semibold">美里都九政府小学</span>
       </div>
 
       {/* Desktop: fixed sidebar */}

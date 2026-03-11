@@ -66,10 +66,13 @@ export default function LoginPage() {
     <div className="flex min-h-svh items-center justify-center bg-muted/40 px-4 py-8">
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
-          <CardTitle className="text-xl font-bold">SJKC Tukau</CardTitle>
-          <CardDescription className="text-base font-medium text-foreground/80">
-            家长出席系统
+          <CardTitle className="text-xl font-bold">美里都九政府小学</CardTitle>
+          <CardDescription className="text-sm text-muted-foreground">
+            SJK Tukau, Miri
           </CardDescription>
+          <p className="text-base font-medium text-foreground/80">
+            PIBKS出席系统
+          </p>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleLogin} className="flex flex-col gap-4">

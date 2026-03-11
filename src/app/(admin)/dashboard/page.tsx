@@ -228,7 +228,7 @@ export default function DashboardPage() {
       <div>
         <h1 className="text-2xl font-bold">仪表盘</h1>
         <p className="text-sm text-muted-foreground">
-          学校出席管理系统概览
+          PIBKS出席管理系统概览
         </p>
       </div>
 
