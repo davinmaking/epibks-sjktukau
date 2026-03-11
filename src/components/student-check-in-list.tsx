@@ -230,7 +230,7 @@ export function StudentCheckInList({
 
       {/* Summary */}
       <p className="text-center text-xs text-muted-foreground">
-        已签到 {checkedInStudentIds.size}/{students.length} 名学生
+        已签到 {students.length > 0 ? Math.round((checkedInStudentIds.size / students.length) * 100) : 0}% ({checkedInStudentIds.size}/{students.length})
       </p>
     </div>
   );

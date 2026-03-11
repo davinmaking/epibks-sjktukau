@@ -21,7 +21,6 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart";
-import { Separator } from "@/components/ui/separator";
 import {
   Calendar,
   Plus,
@@ -279,10 +278,18 @@ export default function DashboardPage() {
 
         {ongoingEvent ? (
           <Card>
-            <CardHeader>
+            <CardHeader className="flex-row items-center justify-between gap-2">
               <CardTitle className="text-base">
                 {ongoingEvent.name}
               </CardTitle>
+              <Button
+                variant="outline"
+                size="sm"
+                render={<Link href={`/events/${ongoingEvent.id}`} />}
+              >
+                查看详情
+                <ArrowRight className="size-4" data-icon="inline-end" />
+              </Button>
             </CardHeader>
             <CardContent className="space-y-6">
               {attendanceLoading ? (
@@ -390,15 +397,6 @@ export default function DashboardPage() {
                 </>
               )}
 
-              <Separator />
-
-              <Button
-                variant="outline"
-                render={<Link href={`/events/${ongoingEvent.id}`} />}
-              >
-                查看详情
-                <ArrowRight className="size-4" data-icon="inline-end" />
-              </Button>
             </CardContent>
           </Card>
         ) : (

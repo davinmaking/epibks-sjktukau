@@ -28,11 +28,15 @@ export function AttendanceStatsCard({
       </CardHeader>
       <CardContent>
         <div className="flex items-baseline gap-2">
-          <span className="text-3xl font-bold">{value}</span>
-          {percentage !== undefined && (
-            <span className={`text-sm font-medium ${getStatusColors(percentage).text} ${getStatusColors(percentage).textDark}`}>
-              {Math.round(percentage)}%
-            </span>
+          {percentage !== undefined ? (
+            <>
+              <span className={`text-3xl font-bold ${getStatusColors(percentage).text} ${getStatusColors(percentage).textDark}`}>
+                {Math.round(percentage)}%
+              </span>
+              <span className="text-sm text-muted-foreground">{value}</span>
+            </>
+          ) : (
+            <span className="text-3xl font-bold">{value}</span>
           )}
         </div>
         {description && (

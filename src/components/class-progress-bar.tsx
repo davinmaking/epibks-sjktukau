@@ -32,11 +32,11 @@ export function ClassProgressBar({
           {classLabel}
         </span>
         <div className="flex items-center gap-2">
-          <span className="text-muted-foreground">
-            {checkedIn}/{total}
-          </span>
           <span className={`font-medium ${colors.text} ${colors.textDark}`}>
             {Math.round(percentage)}%
+          </span>
+          <span className="text-muted-foreground">
+            {checkedIn}/{total}
           </span>
         </div>
       </div>

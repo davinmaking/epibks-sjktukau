@@ -62,9 +62,9 @@ interface StudentRow {
 type Event = Tables<"events">;
 
 function rateString(checked: number, total: number): string {
-  if (total === 0) return "0/0 (0%)";
+  if (total === 0) return "0% (0/0)";
   const pct = Math.round((checked / total) * 100);
-  return `${checked}/${total} (${pct}%)`;
+  return `${pct}% (${checked}/${total})`;
 }
 
 function ratePercent(checked: number, total: number): number {

@@ -416,9 +416,9 @@ export default function TeacherCheckInPage() {
             {event.track_family && (
               <div>
                 <div className="flex items-center justify-between text-sm">
-                  <span className="font-medium">家庭 {checkedInFamilies}/{totalFamilies}</span>
-                  <span className="font-medium text-muted-foreground">
-                    {totalFamilies > 0 ? Math.round((checkedInFamilies / totalFamilies) * 100) : 0}%
+                  <span className="font-medium">家庭 {totalFamilies > 0 ? Math.round((checkedInFamilies / totalFamilies) * 100) : 0}%</span>
+                  <span className="text-sm text-muted-foreground">
+                    {checkedInFamilies}/{totalFamilies}
                   </span>
                 </div>
                 <div
@@ -439,9 +439,9 @@ export default function TeacherCheckInPage() {
             {event.track_student && (
               <div className={event.track_family ? "mt-2" : ""}>
                 <div className="flex items-center justify-between text-sm">
-                  <span className="font-medium">学生 {checkedInStudents}/{totalStudents}</span>
-                  <span className="font-medium text-muted-foreground">
-                    {totalStudents > 0 ? Math.round((checkedInStudents / totalStudents) * 100) : 0}%
+                  <span className="font-medium">学生 {totalStudents > 0 ? Math.round((checkedInStudents / totalStudents) * 100) : 0}%</span>
+                  <span className="text-sm text-muted-foreground">
+                    {checkedInStudents}/{totalStudents}
                   </span>
                 </div>
                 <div
@@ -765,7 +765,7 @@ export default function TeacherCheckInPage() {
               {event.track_family && <hr className="mb-4 border-muted" />}
 
               <h3 className="mb-2 text-sm font-semibold">
-                学生出席 ({checkedInStudents}/{totalStudents})
+                学生出席 ({totalStudents > 0 ? Math.round((checkedInStudents / totalStudents) * 100) : 0}% · {checkedInStudents}/{totalStudents})
               </h3>
               <div className="overflow-x-auto rounded-lg border">
                 <table className="w-full text-xs">

@@ -195,7 +195,7 @@ export default function TeacherEventsPage() {
                       <div className="flex items-center justify-between text-xs">
                         <span className="text-muted-foreground">家庭出席</span>
                         <span className="font-medium">
-                          {event.checkedInFamilies}/{event.totalFamilies} ({familyRate}%)
+                          {familyRate}% ({event.checkedInFamilies}/{event.totalFamilies})
                         </span>
                       </div>
                       <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
@@ -211,7 +211,7 @@ export default function TeacherEventsPage() {
                       <div className="flex items-center justify-between text-xs">
                         <span className="text-muted-foreground">学生出席</span>
                         <span className="font-medium">
-                          {event.checkedInStudents}/{event.totalStudents} ({studentRate}%)
+                          {studentRate}% ({event.checkedInStudents}/{event.totalStudents})
                         </span>
                       </div>
                       <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
