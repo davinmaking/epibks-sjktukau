@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useRealtimeAttendance } from "@/hooks/use-realtime-attendance";
 import { useAttendanceStats } from "@/hooks/use-attendance-stats";
 import { ClassProgressBar } from "@/components/class-progress-bar";
-import { CLASS_NAMES } from "@/lib/constants";
+import { CLASS_NAMES, CLASS_COLORS, NOT_CHECKED_IN_COLOR } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -70,20 +70,6 @@ export default function DashboardPage() {
     studentAttendance,
     students: includedStudents,
   });
-
-  // Distinct colors per class for pie chart, red for not checked in
-  const CLASS_COLORS: Record<string, string> = {
-    PRASEKOLAH: "oklch(0.70 0.18 145)",
-    JOYFUL: "oklch(0.75 0.15 65)",
-    SUNSHINE: "oklch(0.80 0.16 90)",
-    "T1 TEKUN": "oklch(0.65 0.20 250)",
-    "T2 KREATIF": "oklch(0.60 0.18 285)",
-    "T3 BERDIKARI": "oklch(0.68 0.14 195)",
-    "T4 BERJUANG": "oklch(0.70 0.16 55)",
-    "T5 SABAR": "oklch(0.60 0.20 330)",
-    "T6 BERJAYA": "oklch(0.55 0.15 170)",
-  };
-  const NOT_CHECKED_IN_COLOR = "oklch(0.65 0.22 25)";
 
   // Pie chart data: one slice per class (checked-in count) + one "未签到" slice
   const familyPieData = useMemo(() => {

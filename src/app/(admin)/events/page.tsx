@@ -6,6 +6,14 @@ import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Loader2, Plus, CalendarDays, Users, GraduationCap, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
@@ -19,6 +27,7 @@ export default function EventsPage() {
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
 
   async function fetchEvents() {
     const supabase = createClient();
@@ -39,10 +48,8 @@ export default function EventsPage() {
     fetchEvents();
   }, []);
 
-  async function handleDelete(e: React.MouseEvent, eventId: string, eventName: string) {
-    e.stopPropagation();
-    if (!confirm(`确认删除活动「${eventName}」？此操作不可撤销。`)) return;
-
+  async function handleDelete(eventId: string, eventName: string) {
+    setDeleteTarget(null);
     setDeletingId(eventId);
     const supabase = createClient();
 
@@ -129,7 +136,7 @@ export default function EventsPage() {
                       variant="ghost"
                       size="icon"
                       className="size-8 shrink-0 text-muted-foreground hover:text-destructive"
-                      onClick={(e) => handleDelete(e, event.id, event.name)}
+                      onClick={(e) => { e.stopPropagation(); setDeleteTarget({ id: event.id, name: event.name }); }}
                       disabled={deletingId === event.id}
                       aria-label={`删除活动「${event.name}」`}
                     >
@@ -166,6 +173,28 @@ export default function EventsPage() {
           })}
         </div>
       )}
+      {/* Delete confirmation dialog */}
+      <Dialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>删除活动</DialogTitle>
+            <DialogDescription>
+              确认删除活动「{deleteTarget?.name}」？此操作不可撤销，所有签到记录也将被删除。
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteTarget(null)}>
+              取消
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => deleteTarget && handleDelete(deleteTarget.id, deleteTarget.name)}
+            >
+              确认删除
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -156,7 +156,7 @@ export default function ImportStudentsPage() {
           {file && (
             <div className="flex items-center justify-between rounded-lg border bg-muted/50 px-4 py-3">
               <div className="flex items-center gap-3">
-                <FileSpreadsheet className="h-5 w-5 text-green-600" />
+                <FileSpreadsheet className="h-5 w-5 text-success" />
                 <div>
                   <p className="text-sm font-medium">{file.name}</p>
                   <p className="text-xs text-muted-foreground">
@@ -213,7 +213,7 @@ export default function ImportStudentsPage() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <CheckCircle2 className="h-5 w-5 text-green-600" />
+              <CheckCircle2 className="h-5 w-5 text-success" />
               导入完成
             </CardTitle>
             <CardDescription>
@@ -223,25 +223,25 @@ export default function ImportStudentsPage() {
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="rounded-lg border p-3 text-center">
-                <p className="text-2xl font-bold text-green-600">
+                <p className="text-2xl font-bold text-success">
                   {results.familiesCreated}
                 </p>
                 <p className="text-xs text-muted-foreground">新建家庭</p>
               </div>
               <div className="rounded-lg border p-3 text-center">
-                <p className="text-2xl font-bold text-blue-600">
+                <p className="text-2xl font-bold text-chart-2">
                   {results.familiesUpdated}
                 </p>
                 <p className="text-xs text-muted-foreground">更新家庭</p>
               </div>
               <div className="rounded-lg border p-3 text-center">
-                <p className="text-2xl font-bold text-green-600">
+                <p className="text-2xl font-bold text-success">
                   {results.studentsCreated}
                 </p>
                 <p className="text-xs text-muted-foreground">新建学生</p>
               </div>
               <div className="rounded-lg border p-3 text-center">
-                <p className="text-2xl font-bold text-blue-600">
+                <p className="text-2xl font-bold text-chart-2">
                   {results.studentsUpdated}
                 </p>
                 <p className="text-xs text-muted-foreground">更新学生</p>

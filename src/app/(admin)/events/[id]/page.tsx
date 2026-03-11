@@ -8,7 +8,7 @@ import { useRealtimeAttendance } from "@/hooks/use-realtime-attendance";
 import { useAttendanceStats } from "@/hooks/use-attendance-stats";
 import { AttendanceStatsCard } from "@/components/attendance-stats-card";
 import { ClassProgressBar } from "@/components/class-progress-bar";
-import { CLASS_NAMES } from "@/lib/constants";
+import { CLASS_NAMES, CLASS_COLORS, NOT_CHECKED_IN_COLOR } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -25,6 +25,14 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   ArrowLeft,
   CalendarDays,
   FileDown,
@@ -35,19 +43,7 @@ import { toast } from "sonner";
 import type { Tables } from "@/lib/types";
 import { formatDateWithWeekday, getStatusColors } from "@/lib/utils";
 
-// Distinct colors per class for pie chart
-const CLASS_COLORS: Record<string, string> = {
-  PRASEKOLAH: "oklch(0.70 0.18 145)",
-  JOYFUL: "oklch(0.75 0.15 65)",
-  SUNSHINE: "oklch(0.80 0.16 90)",
-  "T1 TEKUN": "oklch(0.65 0.20 250)",
-  "T2 KREATIF": "oklch(0.60 0.18 285)",
-  "T3 BERDIKARI": "oklch(0.68 0.14 195)",
-  "T4 BERJUANG": "oklch(0.70 0.16 55)",
-  "T5 SABAR": "oklch(0.60 0.20 330)",
-  "T6 BERJAYA": "oklch(0.55 0.15 170)",
-};
-const NOT_CHECKED_IN_COLOR = "oklch(0.65 0.22 25)";
+// CLASS_COLORS and NOT_CHECKED_IN_COLOR imported from constants
 
 interface AttendeeEntry {
   type: string;
@@ -96,6 +92,7 @@ export default function EventDetailPage() {
   const [students, setStudents] = useState<StudentRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   // Realtime attendance data
   const {
@@ -282,13 +279,7 @@ export default function EventDetailPage() {
 
   async function handleDelete() {
     if (!event) return;
-    if (
-      !confirm(
-        `确认删除活动「${event.name}」？此操作不可撤销，所有签到记录也将被删除。`
-      )
-    )
-      return;
-
+    setDeleteDialogOpen(false);
     setDeleting(true);
     const supabase = createClient();
 
@@ -470,7 +461,7 @@ export default function EventDetailPage() {
         <Button
           variant="outline"
           className="text-destructive hover:bg-destructive hover:text-destructive-foreground"
-          onClick={handleDelete}
+          onClick={() => setDeleteDialogOpen(true)}
           disabled={deleting}
         >
           {deleting ? (
@@ -852,7 +843,7 @@ export default function EventDetailPage() {
                                           </td>
                                           <td className="truncate px-3 py-2">
                                             {isSibling ? (
-                                              <span className="text-blue-600 dark:text-blue-400">
+                                              <span className="text-chart-2">
                                                 {source}
                                               </span>
                                             ) : (
@@ -889,7 +880,7 @@ export default function EventDetailPage() {
                                       </td>
                                       <td className="truncate px-3 py-2">
                                         {isSibling ? (
-                                          <span className="text-blue-600 dark:text-blue-400">
+                                          <span className="text-chart-2">
                                             {source}
                                           </span>
                                         ) : (
@@ -912,6 +903,26 @@ export default function EventDetailPage() {
           </TabsContent>
         </Tabs>
       )}
+
+      {/* Delete confirmation dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>删除活动</DialogTitle>
+            <DialogDescription>
+              确认删除活动「{event?.name}」？此操作不可撤销，所有签到记录也将被删除。
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
+              取消
+            </Button>
+            <Button variant="destructive" onClick={handleDelete}>
+              确认删除
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

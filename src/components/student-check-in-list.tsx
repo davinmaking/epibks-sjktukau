@@ -199,7 +199,7 @@ export function StudentCheckInList({
                 key={student.id}
                 className={`flex min-h-[48px] cursor-pointer items-center gap-3 rounded-lg border p-3 transition-all duration-200 active:scale-[0.98] ${
                   isCheckedIn
-                    ? "border-green-200 bg-green-50/50 dark:border-green-900 dark:bg-green-950/20"
+                    ? "border-success/30 bg-success/5"
                     : "hover:border-primary/30 hover:shadow-sm"
                 }`}
               >

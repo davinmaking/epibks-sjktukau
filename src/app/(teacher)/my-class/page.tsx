@@ -157,13 +157,13 @@ export default function MyClassPage() {
 
       {/* Search */}
       <div className="relative">
-        <Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+        <Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
         <Input
           placeholder="搜索学生姓名..."
           aria-label="搜索学生姓名"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="pl-9"
+          className="min-h-[44px] pl-9"
         />
       </div>
 
@@ -187,6 +187,7 @@ export default function MyClassPage() {
                 role="button"
                 tabIndex={0}
                 aria-expanded={isExpanded}
+                aria-label={`${student.name} 的详细信息`}
                 onClick={() => toggleExpand(student.id)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" || e.key === " ") {

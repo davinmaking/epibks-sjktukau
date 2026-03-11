@@ -248,7 +248,7 @@ export function FamilyCheckInDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="max-w-[92vw] sm:max-w-md">
         <DialogHeader>
           <DialogTitle>出席登记</DialogTitle>
           <DialogDescription>
@@ -263,7 +263,7 @@ export function FamilyCheckInDialog({
               <p className="text-sm font-medium">
                 家长出席
                 {familyAlreadyCheckedIn && (
-                  <span className="ml-2 text-xs font-normal text-green-600">已签到</span>
+                  <span className="ml-2 text-xs font-normal text-success">已签到</span>
                 )}
               </p>
 
@@ -329,46 +329,50 @@ export function FamilyCheckInDialog({
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="size-7 text-muted-foreground hover:text-destructive"
+                          className="min-h-[44px] min-w-[44px] text-muted-foreground hover:text-destructive"
                           onClick={() => removeOther(index)}
+                          aria-label={`删除第 ${index + 1} 位其他出席者`}
                         >
-                          <X className="size-3.5" />
+                          <X className="size-4" />
                         </Button>
                       </div>
                       <div className="space-y-1">
-                        <label className="text-xs font-medium text-muted-foreground">
+                        <label htmlFor={`other-name-${index}`} className="text-xs font-medium text-muted-foreground">
                           姓名 <span className="text-destructive">*</span>
                         </label>
                         <Input
+                          id={`other-name-${index}`}
                           value={other.name}
                           onChange={(e) => updateOther(index, "name", e.target.value)}
                           placeholder="出席者姓名"
-                          className="min-h-[40px] text-sm"
+                          className="min-h-[44px] text-sm"
                           autoComplete="off"
                         />
                       </div>
                       <div className="space-y-1">
-                        <label className="text-xs font-medium text-muted-foreground">
+                        <label htmlFor={`other-ic-${index}`} className="text-xs font-medium text-muted-foreground">
                           身份证号码
                         </label>
                         <Input
+                          id={`other-ic-${index}`}
                           value={other.ic}
                           onChange={(e) => updateOther(index, "ic", e.target.value)}
                           placeholder="身份证号码（选填）"
-                          className="min-h-[40px] text-sm"
+                          className="min-h-[44px] text-sm"
                           inputMode="numeric"
                           autoComplete="off"
                         />
                       </div>
                       <div className="space-y-1">
-                        <label className="text-xs font-medium text-muted-foreground">
+                        <label htmlFor={`other-rel-${index}`} className="text-xs font-medium text-muted-foreground">
                           关系
                         </label>
                         <Input
+                          id={`other-rel-${index}`}
                           value={other.relationship}
                           onChange={(e) => updateOther(index, "relationship", e.target.value)}
                           placeholder="与学生的关系（选填）"
-                          className="min-h-[40px] text-sm"
+                          className="min-h-[44px] text-sm"
                           autoComplete="off"
                         />
                       </div>
@@ -401,7 +405,7 @@ export function FamilyCheckInDialog({
                       key={student.id}
                       className={`flex min-h-[48px] cursor-pointer items-center gap-3 rounded-lg border p-3 transition-all duration-200 active:scale-[0.98] ${
                         isChecked
-                          ? "border-green-200 bg-green-50/50 dark:border-green-900 dark:bg-green-950/20"
+                          ? "border-success/30 bg-success/5"
                           : "hover:bg-muted/50"
                       }`}
                     >

@@ -135,10 +135,9 @@ export function NavSidebar({ role }: NavSidebarProps) {
       <div className="fixed top-0 left-0 right-0 z-40 flex h-14 items-center border-b bg-background px-4 md:hidden">
         <Sheet open={open} onOpenChange={setOpen}>
           <SheetTrigger
-            render={<Button variant="ghost" size="icon" />}
+            render={<Button variant="ghost" size="icon" aria-label="打开菜单" />}
           >
             <Menu className="size-5" />
-            <span className="sr-only">打开菜单</span>
           </SheetTrigger>
           <SheetContent side="left" className="w-[min(16rem,85vw)] p-0">
             <SheetHeader className="sr-only">

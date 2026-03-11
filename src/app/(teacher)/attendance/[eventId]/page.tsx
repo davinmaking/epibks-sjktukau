@@ -404,7 +404,7 @@ export default function TeacherCheckInPage() {
       </div>
 
       <Tabs defaultValue="checkin">
-        <TabsList>
+        <TabsList aria-label="签到和出席详情">
           <TabsTrigger value="checkin">签到</TabsTrigger>
           <TabsTrigger value="detail">出席详情</TabsTrigger>
         </TabsList>
@@ -421,7 +421,14 @@ export default function TeacherCheckInPage() {
                     {totalFamilies > 0 ? Math.round((checkedInFamilies / totalFamilies) * 100) : 0}%
                   </span>
                 </div>
-                <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-muted">
+                <div
+                  className="mt-1 h-2 w-full overflow-hidden rounded-full bg-muted"
+                  role="progressbar"
+                  aria-valuenow={totalFamilies > 0 ? Math.round((checkedInFamilies / totalFamilies) * 100) : 0}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-label={`家庭签到进度 ${checkedInFamilies}/${totalFamilies}`}
+                >
                   <div
                     className="h-full rounded-full bg-primary transition-all duration-500"
                     style={{ width: `${totalFamilies > 0 ? Math.round((checkedInFamilies / totalFamilies) * 100) : 0}%` }}
@@ -437,7 +444,14 @@ export default function TeacherCheckInPage() {
                     {totalStudents > 0 ? Math.round((checkedInStudents / totalStudents) * 100) : 0}%
                   </span>
                 </div>
-                <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-muted">
+                <div
+                  className="mt-1 h-2 w-full overflow-hidden rounded-full bg-muted"
+                  role="progressbar"
+                  aria-valuenow={totalStudents > 0 ? Math.round((checkedInStudents / totalStudents) * 100) : 0}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-label={`学生签到进度 ${checkedInStudents}/${totalStudents}`}
+                >
                   <div
                     className="h-full rounded-full bg-primary transition-all duration-500"
                     style={{ width: `${totalStudents > 0 ? Math.round((checkedInStudents / totalStudents) * 100) : 0}%` }}
@@ -449,7 +463,7 @@ export default function TeacherCheckInPage() {
 
           {/* Search bar */}
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
             <Input
               placeholder="搜索学生或家长姓名..."
               aria-label="搜索学生或家长姓名"
@@ -478,7 +492,7 @@ export default function TeacherCheckInPage() {
                       key={student.id}
                       className={`flex min-h-[52px] cursor-pointer items-center gap-3 rounded-lg border p-3 transition-all duration-200 active:scale-[0.98] ${
                         isCheckedIn
-                          ? "border-green-200 bg-green-50/50 dark:border-green-900 dark:bg-green-950/20"
+                          ? "border-success/30 bg-success/5"
                           : "border-primary/20 bg-background hover:border-primary/40 hover:shadow-sm"
                       }`}
                     >
@@ -521,7 +535,7 @@ export default function TeacherCheckInPage() {
                         key={family.id}
                         className={`flex min-h-[60px] cursor-pointer items-center justify-between gap-3 rounded-lg border p-3 transition-all duration-200 active:scale-[0.98] ${
                           allDone
-                            ? "border-green-200 bg-green-50/50 dark:border-green-900 dark:bg-green-950/20"
+                            ? "border-success/30 bg-success/5"
                             : "border-primary/20 bg-background hover:border-primary/40 hover:shadow-sm active:bg-muted/50"
                         }`}
                         onClick={() => {
@@ -539,14 +553,14 @@ export default function TeacherCheckInPage() {
                           </p>
                           <div className="mt-1.5 flex flex-wrap gap-1">
                             {event.track_family && familyDone && (
-                              <Badge variant="outline" className="gap-1 border-green-300 text-xs text-green-700 dark:border-green-800 dark:text-green-400">
+                              <Badge variant="outline" className="gap-1 border-success/40 text-xs text-success">
                                 <CheckCircle2 className="size-3" />
                                 家长
                               </Badge>
                             )}
                             {event.track_student && children.map((c) => (
                               checkedInStudentIds.has(c.id) && (
-                                <Badge key={c.id} variant="outline" className="gap-1 border-green-300 text-xs text-green-700 dark:border-green-800 dark:text-green-400">
+                                <Badge key={c.id} variant="outline" className="gap-1 border-success/40 text-xs text-success">
                                   <CheckCircle2 className="size-3" />
                                   {c.name}
                                 </Badge>
@@ -669,52 +683,37 @@ export default function TeacherCheckInPage() {
             <div className="space-y-4">
               {/* Attended */}
               <div>
-                <h3 className="mb-2 text-sm font-semibold text-green-700 dark:text-green-400">
+                <h3 className="mb-2 text-sm font-semibold text-success">
                   已出席 ({checkedInFamilies})
                 </h3>
                 {checkedInFamilies === 0 ? (
                   <p className="text-xs text-muted-foreground">暂无签到记录</p>
                 ) : (
-                  <div className="overflow-x-auto rounded-lg border">
-                    <table className="w-full text-xs">
-                      <thead>
-                        <tr className="border-b bg-muted/50">
-                          <th className="px-3 py-2 text-left font-medium">学生</th>
-                          <th className="px-3 py-2 text-left font-medium">出席者</th>
-                          <th className="px-3 py-2 text-left font-medium">身份证号</th>
-                          <th className="px-3 py-2 text-left font-medium">关系</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {familyGroups
-                          .filter(({ family }) => familyAttendanceMap.has(family.id))
-                          .flatMap(({ family, students: children }) => {
-                            const record = familyAttendance.find((fa) => fa.family_id === family.id);
-                            if (!record) return [];
-                            const childNames = children.map((c) => c.name).join("、");
-                            const attendees = (record.attendees as unknown as AttendeeEntry[]) ?? [];
+                  <div className="space-y-2">
+                    {familyGroups
+                      .filter(({ family }) => familyAttendanceMap.has(family.id))
+                      .map(({ family, students: children }) => {
+                        const record = familyAttendance.find((fa) => fa.family_id === family.id);
+                        if (!record) return null;
+                        const childNames = children.map((c) => c.name).join("、");
+                        const attendees = (record.attendees as unknown as AttendeeEntry[]) ?? [];
+                        const entries = attendees.length > 0
+                          ? attendees
+                          : [{ name: record.attendee_name || "-", ic: record.attendee_ic || "-", relationship: record.attendee_relationship || record.attendee_type || "-", type: record.attendee_type || "-" }];
 
-                            if (attendees.length > 0) {
-                              return attendees.map((att, i) => (
-                                <tr key={`${family.id}-${i}`} className="border-b">
-                                  <td className="px-3 py-2">{i === 0 ? childNames : ""}</td>
-                                  <td className="px-3 py-2 font-medium">{att.name || "-"}</td>
-                                  <td className="px-3 py-2 font-mono">{att.ic || "-"}</td>
-                                  <td className="px-3 py-2">{att.relationship || att.type || "-"}</td>
-                                </tr>
-                              ));
-                            }
-                            return [(
-                              <tr key={family.id} className="border-b">
-                                <td className="px-3 py-2">{childNames}</td>
-                                <td className="px-3 py-2 font-medium">{record.attendee_name || "-"}</td>
-                                <td className="px-3 py-2 font-mono">{record.attendee_ic || "-"}</td>
-                                <td className="px-3 py-2">{record.attendee_relationship || record.attendee_type || "-"}</td>
-                              </tr>
-                            )];
-                          })}
-                      </tbody>
-                    </table>
+                        return (
+                          <div key={family.id} className="rounded-lg border p-3 text-sm">
+                            <p className="mb-1.5 font-medium">{childNames}</p>
+                            {entries.map((att, i) => (
+                              <div key={i} className="flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-muted-foreground">
+                                <span className="font-medium text-foreground">{att.name || "-"}</span>
+                                <span className="font-mono">{att.ic || "-"}</span>
+                                <span>{att.relationship || att.type || "-"}</span>
+                              </div>
+                            ))}
+                          </div>
+                        );
+                      })}
                   </div>
                 )}
               </div>
@@ -757,7 +756,7 @@ export default function TeacherCheckInPage() {
                 <table className="w-full text-xs">
                   <thead>
                     <tr className="border-b bg-muted/50">
-                      <th className="w-1/2 px-3 py-2 text-left font-medium text-green-700 dark:text-green-400">
+                      <th className="w-1/2 px-3 py-2 text-left font-medium text-success">
                         已出席 ({checkedInStudents})
                       </th>
                       <th className="w-1/2 px-3 py-2 text-left font-medium text-destructive">
@@ -774,7 +773,7 @@ export default function TeacherCheckInPage() {
                         <tr key={i} className="border-b last:border-b-0">
                           <td className="px-3 py-1.5">
                             {attended[i] ? (
-                              <span className="text-green-700 dark:text-green-400">{attended[i].name}</span>
+                              <span className="text-success">{attended[i].name}</span>
                             ) : ""}
                           </td>
                           <td className="px-3 py-1.5">

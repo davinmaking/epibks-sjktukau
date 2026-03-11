@@ -26,6 +26,21 @@ export const CLASS_NAMES = [
   "T6 BERJAYA",
 ] as const;
 
+// Distinct colors per class for pie charts
+export const CLASS_COLORS: Record<string, string> = {
+  PRASEKOLAH: "oklch(0.70 0.18 145)",
+  JOYFUL: "oklch(0.75 0.15 65)",
+  SUNSHINE: "oklch(0.80 0.16 90)",
+  "T1 TEKUN": "oklch(0.65 0.20 250)",
+  "T2 KREATIF": "oklch(0.60 0.18 285)",
+  "T3 BERDIKARI": "oklch(0.68 0.14 195)",
+  "T4 BERJUANG": "oklch(0.70 0.16 55)",
+  "T5 SABAR": "oklch(0.60 0.20 330)",
+  "T6 BERJAYA": "oklch(0.55 0.15 170)",
+};
+
+export const NOT_CHECKED_IN_COLOR = "oklch(0.65 0.22 25)";
+
 // Maps class_name to year_level for grouping
 export const CLASS_YEAR_MAP: Record<string, string> = {
   PRASEKOLAH: "PRASEKOLAH",

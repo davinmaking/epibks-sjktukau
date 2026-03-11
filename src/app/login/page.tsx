@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Loader2 } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -101,7 +102,7 @@ export default function LoginPage() {
               />
             </div>
             <Button type="submit" className="mt-2 w-full" disabled={loading}>
-              {loading ? "登录中..." : "登录"}
+              {loading ? <><Loader2 className="size-4 animate-spin" />登录中...</> : "登录"}
             </Button>
           </form>
         </CardContent>

@@ -51,11 +51,11 @@ export function getStatusColors(percentage: number): {
 } {
   if (percentage >= 75) {
     return {
-      text: "text-green-700",
-      textDark: "dark:text-green-400",
-      bg: "bg-green-50",
-      bgDark: "dark:bg-green-950/20",
-      indicator: "[&_[data-slot=progress-indicator]]:bg-green-600",
+      text: "text-success",
+      textDark: "",
+      bg: "bg-success/5",
+      bgDark: "",
+      indicator: "[&_[data-slot=progress-indicator]]:bg-success",
       label: "良好",
     };
   }
@@ -70,11 +70,11 @@ export function getStatusColors(percentage: number): {
     };
   }
   return {
-    text: "text-red-700",
-    textDark: "dark:text-red-400",
-    bg: "bg-red-50",
-    bgDark: "dark:bg-red-950/20",
-    indicator: "[&_[data-slot=progress-indicator]]:bg-red-600",
+    text: "text-destructive",
+    textDark: "",
+    bg: "bg-destructive/5",
+    bgDark: "",
+    indicator: "[&_[data-slot=progress-indicator]]:bg-destructive",
     label: "需关注",
   };
 }
