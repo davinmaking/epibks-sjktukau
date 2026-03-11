@@ -256,85 +256,80 @@ export default function TeacherDashboardPage() {
 
       {/* Section 2: Active Event */}
       <section className="space-y-4">
-        <h2 className="text-lg font-semibold">当前活动</h2>
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-semibold">当前活动</h2>
+            {ongoingEvent && (
+              <p className="text-sm text-muted-foreground">{ongoingEvent.name}</p>
+            )}
+          </div>
+          {ongoingEvent && (
+            <Button render={<Link href={`/attendance/${ongoingEvent.id}`} />}>
+              进入签到
+              <ArrowRight className="size-4" data-icon="inline-end" />
+            </Button>
+          )}
+        </div>
 
         {ongoingEvent ? (
           <Card>
-            <CardHeader>
-              <CardTitle className="text-base">
-                {ongoingEvent.name}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
+            <CardContent className="space-y-6 pt-6">
               {attendanceLoading ? (
                 <div className="flex h-24 items-center justify-center" role="status" aria-label="加载出席数据">
                   <Loader2 className="size-6 animate-spin text-muted-foreground" />
                 </div>
               ) : (
-                <>
-                  {/* Pie charts */}
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    {ongoingEvent.track_family && familyPieData && (
-                      <Card>
-                        <CardHeader className="items-center pb-0">
-                          <CardTitle className="text-sm">家庭出席率</CardTitle>
-                        </CardHeader>
-                        <CardContent className="flex-1 pb-0">
-                          <ChartContainer
-                            config={pieChartConfig}
-                            className="mx-auto aspect-square max-h-[280px] [&_.recharts-pie-label-text]:fill-foreground"
-                          >
-                            <PieChart>
-                              <ChartTooltip content={<ChartTooltipContent hideLabel />} />
-                              <Pie data={familyPieData} dataKey="count" label={{ fontSize: 12 }} nameKey="status" outerRadius="70%" />
-                            </PieChart>
-                          </ChartContainer>
-                        </CardContent>
-                        <div className="p-4 pt-2 text-center">
-                          <p className="text-2xl font-bold">{familyRate}%</p>
-                          <p className="text-xs text-muted-foreground">
-                            {checkedInFamilies}/{classFamilyIds.size} 家庭已签到
-                          </p>
-                        </div>
-                      </Card>
-                    )}
-                    {ongoingEvent.track_student && studentPieData && (
-                      <Card>
-                        <CardHeader className="items-center pb-0">
-                          <CardTitle className="text-sm">学生出席率</CardTitle>
-                        </CardHeader>
-                        <CardContent className="flex-1 pb-0">
-                          <ChartContainer
-                            config={pieChartConfig}
-                            className="mx-auto aspect-square max-h-[280px] [&_.recharts-pie-label-text]:fill-foreground"
-                          >
-                            <PieChart>
-                              <ChartTooltip content={<ChartTooltipContent hideLabel />} />
-                              <Pie data={studentPieData} dataKey="count" label={{ fontSize: 12 }} nameKey="status" outerRadius="70%" />
-                            </PieChart>
-                          </ChartContainer>
-                        </CardContent>
-                        <div className="p-4 pt-2 text-center">
-                          <p className="text-2xl font-bold">{studentRate}%</p>
-                          <p className="text-xs text-muted-foreground">
-                            {checkedInStudents}/{classStudents.length} 学生已签到
-                          </p>
-                        </div>
-                      </Card>
-                    )}
-                  </div>
-                </>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {ongoingEvent.track_family && familyPieData && (
+                    <Card>
+                      <CardHeader className="items-center pb-0">
+                        <CardTitle className="text-sm">家庭出席率</CardTitle>
+                      </CardHeader>
+                      <CardContent className="flex-1 pb-0">
+                        <ChartContainer
+                          config={pieChartConfig}
+                          className="mx-auto aspect-square max-h-[280px] [&_.recharts-pie-label-text]:fill-foreground"
+                        >
+                          <PieChart>
+                            <ChartTooltip content={<ChartTooltipContent hideLabel />} />
+                            <Pie data={familyPieData} dataKey="count" label={{ fontSize: 12 }} nameKey="status" outerRadius="70%" />
+                          </PieChart>
+                        </ChartContainer>
+                      </CardContent>
+                      <div className="p-4 pt-2 text-center">
+                        <p className="text-2xl font-bold">{familyRate}%</p>
+                        <p className="text-xs text-muted-foreground">
+                          {checkedInFamilies}/{classFamilyIds.size} 家庭已签到
+                        </p>
+                      </div>
+                    </Card>
+                  )}
+                  {ongoingEvent.track_student && studentPieData && (
+                    <Card>
+                      <CardHeader className="items-center pb-0">
+                        <CardTitle className="text-sm">学生出席率</CardTitle>
+                      </CardHeader>
+                      <CardContent className="flex-1 pb-0">
+                        <ChartContainer
+                          config={pieChartConfig}
+                          className="mx-auto aspect-square max-h-[280px] [&_.recharts-pie-label-text]:fill-foreground"
+                        >
+                          <PieChart>
+                            <ChartTooltip content={<ChartTooltipContent hideLabel />} />
+                            <Pie data={studentPieData} dataKey="count" label={{ fontSize: 12 }} nameKey="status" outerRadius="70%" />
+                          </PieChart>
+                        </ChartContainer>
+                      </CardContent>
+                      <div className="p-4 pt-2 text-center">
+                        <p className="text-2xl font-bold">{studentRate}%</p>
+                        <p className="text-xs text-muted-foreground">
+                          {checkedInStudents}/{classStudents.length} 学生已签到
+                        </p>
+                      </div>
+                    </Card>
+                  )}
+                </div>
               )}
-
-              <Separator />
-
-              <Button
-                variant="outline"
-                render={<Link href={`/attendance/${ongoingEvent.id}`} />}
-              >
-                进入签到
-                <ArrowRight className="size-4" data-icon="inline-end" />
-              </Button>
             </CardContent>
           </Card>
         ) : (
