@@ -732,7 +732,7 @@ export default function EventDetailPage() {
                 {showFamily && (
                   <div className="space-y-6">
                     <div>
-                      <h3 className="text-base font-semibold">家庭出席详情</h3>
+                      <h2 className="text-lg font-semibold">家庭出席详情</h2>
                       <p className="mt-1 text-sm text-muted-foreground">
                         各班出席家长/监护人详情，含学生姓名
                       </p>
