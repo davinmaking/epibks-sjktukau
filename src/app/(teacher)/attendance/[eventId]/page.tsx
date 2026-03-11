@@ -290,43 +290,43 @@ export default function TeacherCheckInPage() {
   );
 
   // CSV export for teacher's class
-  function handleExportCSV() {
+  function handleExportFamilyCSV() {
     if (!event) return;
 
-    if (event.track_family) {
-      // Export family attendance detail
-      const headers = ["学生姓名", "出席者姓名", "身份证号码", "关系", "状态"];
-      const rows: string[][] = [];
+    const headers = ["学生姓名", "出席者姓名", "身份证号码", "关系", "状态"];
+    const rows: string[][] = [];
 
-      for (const group of familyGroups) {
-        const { family, students: children } = group;
-        const childNames = children.map((c) => c.name).join("、");
-        const record = familyAttendance.find((fa) => fa.family_id === family.id);
+    for (const group of familyGroups) {
+      const { family, students: children } = group;
+      const childNames = children.map((c) => c.name).join("、");
+      const record = familyAttendance.find((fa) => fa.family_id === family.id);
 
-        if (record) {
-          const attendees = (record.attendees as unknown as AttendeeEntry[]) ?? [];
-          if (attendees.length > 0) {
-            for (const att of attendees) {
-              rows.push([childNames, att.name || "-", att.ic || "-", att.relationship || att.type || "-", "已出席"]);
-            }
-          } else {
-            rows.push([childNames, record.attendee_name || "-", record.attendee_ic || "-", record.attendee_relationship || record.attendee_type || "-", "已出席"]);
+      if (record) {
+        const attendees = (record.attendees as unknown as AttendeeEntry[]) ?? [];
+        if (attendees.length > 0) {
+          for (const att of attendees) {
+            rows.push([childNames, att.name || "-", att.ic || "-", att.relationship || att.type || "-", "已出席"]);
           }
         } else {
-          rows.push([childNames, "-", "-", "-", "未出席"]);
+          rows.push([childNames, record.attendee_name || "-", record.attendee_ic || "-", record.attendee_relationship || record.attendee_type || "-", "已出席"]);
         }
+      } else {
+        rows.push([childNames, "-", "-", "-", "未出席"]);
       }
-
-      downloadCSV(headers, rows, `${event.name}-${teacher!.class_name}-家庭出席.csv`);
-    } else if (event.track_student) {
-      // Export student attendance
-      const headers = ["学生姓名", "状态"];
-      const rows = classStudents.map((s) => [
-        s.name,
-        checkedInStudentIds.has(s.id) ? "已出席" : "未出席",
-      ]);
-      downloadCSV(headers, rows, `${event.name}-${teacher!.class_name}-学生出席.csv`);
     }
+
+    downloadCSV(headers, rows, `${event.name}-${teacher!.class_name}-家庭出席.csv`);
+  }
+
+  function handleExportStudentCSV() {
+    if (!event) return;
+
+    const headers = ["学生姓名", "状态"];
+    const rows = classStudents.map((s) => [
+      s.name,
+      checkedInStudentIds.has(s.id) ? "已出席" : "未出席",
+    ]);
+    downloadCSV(headers, rows, `${event.name}-${teacher!.class_name}-学生出席.csv`);
   }
 
   function downloadCSV(headers: string[], rows: string[][], filename: string) {
@@ -674,21 +674,20 @@ export default function TeacherCheckInPage() {
 
         {/* Tab 2: Attendance Detail */}
         <TabsContent value="detail" className="space-y-6">
-          <div className="flex items-center justify-end">
-            <Button size="sm" onClick={handleExportCSV}>
-              <FileDown className="size-4" />
-              导出 CSV
-            </Button>
-          </div>
-
           {/* Family attendance detail */}
           {event.track_family && (
             <div className="space-y-4">
-              <div>
-                <h2 className="text-lg font-semibold">家庭出席详情</h2>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  出席家长/监护人详情，含学生姓名
-                </p>
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h2 className="text-lg font-semibold">家庭出席详情</h2>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    出席家长/监护人详情，含学生姓名
+                  </p>
+                </div>
+                <Button size="sm" className="shrink-0" onClick={handleExportFamilyCSV}>
+                  <FileDown className="size-4" />
+                  导出 CSV
+                </Button>
               </div>
               {/* Attended */}
               <div>
@@ -773,11 +772,17 @@ export default function TeacherCheckInPage() {
             <div>
               {event.track_family && <hr className="mb-4 border-muted" />}
 
-              <div className="mb-4">
-                <h2 className="text-lg font-semibold">学生出席详情</h2>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  学生出席/缺席名单
-                </p>
+              <div className="mb-4 flex items-start justify-between gap-4">
+                <div>
+                  <h2 className="text-lg font-semibold">学生出席详情</h2>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    学生出席/缺席名单
+                  </p>
+                </div>
+                <Button size="sm" className="shrink-0" onClick={handleExportStudentCSV}>
+                  <FileDown className="size-4" />
+                  导出 CSV
+                </Button>
               </div>
               <div className="overflow-x-auto rounded-lg border">
                 <table className="w-full text-xs">

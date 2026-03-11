@@ -411,6 +411,46 @@ export default function EventDetailPage() {
     URL.revokeObjectURL(url);
   }
 
+  // CSV export — student attendance detail
+  function handleExportStudentCSV() {
+    if (!event) return;
+
+    const headers = ["班级", "学生姓名", "状态"];
+    const rows: string[][] = [];
+
+    for (const className of includedClassNames) {
+      const classStudents = includedStudents.filter(
+        (s) => s.class_name === className
+      );
+      const checkedInIds = new Set(
+        studentAttendance
+          .filter((sa) => classStudents.some((s) => s.id === sa.student_id))
+          .map((sa) => sa.student_id)
+      );
+
+      for (const student of classStudents) {
+        rows.push([
+          className,
+          student.name,
+          checkedInIds.has(student.id) ? "已出席" : "未出席",
+        ]);
+      }
+    }
+
+    const escapeCsv = (s: string) =>
+      s.includes(",") || s.includes('"') ? `"${s.replace(/"/g, '""')}"` : s;
+    const csv =
+      "\uFEFF" +
+      [headers, ...rows].map((r) => r.map(escapeCsv).join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${event.name}-学生出席详情.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   if (loading) {
     return (
       <div
@@ -716,12 +756,6 @@ export default function EventDetailPage() {
 
           {/* Tab 3: Detailed Attendance */}
           <TabsContent value="detail" className="space-y-4">
-            <div className="flex items-center justify-end">
-              <Button size="sm" onClick={handleExportDetailCSV}>
-                <FileDown className="size-4" />
-                导出 CSV
-              </Button>
-            </div>
             {!showFamily && !showStudent ? (
               <div className="flex h-40 items-center justify-center text-muted-foreground">
                 <p>该活动未追踪出席</p>
@@ -731,11 +765,17 @@ export default function EventDetailPage() {
                 {/* Family attendance detail */}
                 {showFamily && (
                   <div className="space-y-6">
-                    <div>
-                      <h2 className="text-lg font-semibold">家庭出席详情</h2>
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        各班出席家长/监护人详情，含学生姓名
-                      </p>
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <h2 className="text-lg font-semibold">家庭出席详情</h2>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          各班出席家长/监护人详情，含学生姓名
+                        </p>
+                      </div>
+                      <Button size="sm" className="shrink-0" onClick={handleExportDetailCSV}>
+                        <FileDown className="size-4" />
+                        导出 CSV
+                      </Button>
                     </div>
                     {includedClassNames.map((className) => {
                       const classStudents = includedStudents.filter(
@@ -909,11 +949,17 @@ export default function EventDetailPage() {
                 {showStudent && (
                   <div className="space-y-6">
                     {showFamily && <hr className="border-muted" />}
-                    <div>
-                      <h2 className="text-lg font-semibold">学生出席详情</h2>
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        各班学生出席/缺席名单
-                      </p>
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <h2 className="text-lg font-semibold">学生出席详情</h2>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          各班学生出席/缺席名单
+                        </p>
+                      </div>
+                      <Button size="sm" className="shrink-0" onClick={handleExportStudentCSV}>
+                        <FileDown className="size-4" />
+                        导出 CSV
+                      </Button>
                     </div>
                     {includedClassNames.map((className) => {
                       const classStudents = includedStudents.filter(
