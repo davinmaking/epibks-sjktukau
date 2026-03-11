@@ -71,19 +71,19 @@ export default function DashboardPage() {
     students: includedStudents,
   });
 
-  // Colors: different shades of cyan/teal for checked-in classes, red for not checked in
+  // Distinct colors per class for pie chart, red for not checked in
   const CLASS_COLORS: Record<string, string> = {
-    PRASEKOLAH: "oklch(0.85 0.12 185)",
-    JOYFUL: "oklch(0.80 0.13 190)",
-    SUNSHINE: "oklch(0.75 0.14 185)",
-    "T1 TEKUN": "oklch(0.70 0.15 190)",
-    "T2 KREATIF": "oklch(0.65 0.15 185)",
-    "T3 BERDIKARI": "oklch(0.60 0.14 190)",
-    "T4 BERJUANG": "oklch(0.55 0.13 185)",
-    "T5 SABAR": "oklch(0.50 0.12 190)",
-    "T6 BERJAYA": "oklch(0.45 0.11 185)",
+    PRASEKOLAH: "oklch(0.70 0.18 145)",
+    JOYFUL: "oklch(0.75 0.15 65)",
+    SUNSHINE: "oklch(0.80 0.16 90)",
+    "T1 TEKUN": "oklch(0.65 0.20 250)",
+    "T2 KREATIF": "oklch(0.60 0.18 285)",
+    "T3 BERDIKARI": "oklch(0.68 0.14 195)",
+    "T4 BERJUANG": "oklch(0.65 0.18 30)",
+    "T5 SABAR": "oklch(0.60 0.20 330)",
+    "T6 BERJAYA": "oklch(0.55 0.15 170)",
   };
-  const NOT_CHECKED_IN_COLOR = "oklch(0.65 0.20 25)";
+  const NOT_CHECKED_IN_COLOR = "oklch(0.65 0.22 25)";
 
   // Pie chart data: one slice per class (checked-in count) + one "未签到" slice
   const familyPieData = useMemo(() => {
@@ -380,6 +380,7 @@ export default function DashboardPage() {
                               classLabel={cls}
                               checkedIn={stat.checkedInFamilies}
                               total={stat.totalFamilies}
+                              colorDot={CLASS_COLORS[cls]}
                             />
                           );
                         }
@@ -391,6 +392,7 @@ export default function DashboardPage() {
                               classLabel={cls}
                               checkedIn={stat.checkedInStudents}
                               total={stat.totalStudents}
+                              colorDot={CLASS_COLORS[cls]}
                             />
                           );
                         }
