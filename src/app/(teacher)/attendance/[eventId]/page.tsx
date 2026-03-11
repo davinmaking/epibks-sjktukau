@@ -747,45 +747,46 @@ export default function TeacherCheckInPage() {
 
           {/* Student attendance detail */}
           {event.track_student && (
-            <div className="space-y-4">
-              {event.track_family && <hr className="border-muted" />}
+            <div>
+              {event.track_family && <hr className="mb-4 border-muted" />}
 
-              {/* Attended students */}
-              <div>
-                <h3 className="mb-2 text-sm font-semibold text-green-700 dark:text-green-400">
-                  已出席学生 ({checkedInStudents})
-                </h3>
-                {checkedInStudents === 0 ? (
-                  <p className="text-xs text-muted-foreground">暂无签到记录</p>
-                ) : (
-                  <div className="flex flex-wrap gap-1.5">
-                    {classStudents
-                      .filter((s) => checkedInStudentIds.has(s.id))
-                      .map((s) => (
-                        <Badge key={s.id} variant="outline" className="border-green-300 text-green-700 dark:border-green-800 dark:text-green-400">
-                          {s.name}
-                        </Badge>
-                      ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Not attended students */}
-              <div>
-                <h3 className="mb-2 text-sm font-semibold text-destructive">
-                  未出席学生 ({notCheckedInStudents.length})
-                </h3>
-                {notCheckedInStudents.length === 0 ? (
-                  <p className="text-xs text-muted-foreground">全部已出席</p>
-                ) : (
-                  <div className="flex flex-wrap gap-1.5">
-                    {notCheckedInStudents.map((s) => (
-                      <Badge key={s.id} variant="outline" className="border-destructive/30 text-destructive">
-                        {s.name}
-                      </Badge>
-                    ))}
-                  </div>
-                )}
+              <h3 className="mb-2 text-sm font-semibold">
+                学生出席 ({checkedInStudents}/{totalStudents})
+              </h3>
+              <div className="overflow-x-auto rounded-lg border">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b bg-muted/50">
+                      <th className="w-1/2 px-3 py-2 text-left font-medium text-green-700 dark:text-green-400">
+                        已出席 ({checkedInStudents})
+                      </th>
+                      <th className="w-1/2 px-3 py-2 text-left font-medium text-destructive">
+                        未出席 ({notCheckedInStudents.length})
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(() => {
+                      const attended = classStudents.filter((s) => checkedInStudentIds.has(s.id));
+                      const absent = notCheckedInStudents;
+                      const maxLen = Math.max(attended.length, absent.length, 1);
+                      return Array.from({ length: maxLen }, (_, i) => (
+                        <tr key={i} className="border-b last:border-b-0">
+                          <td className="px-3 py-1.5">
+                            {attended[i] ? (
+                              <span className="text-green-700 dark:text-green-400">{attended[i].name}</span>
+                            ) : ""}
+                          </td>
+                          <td className="px-3 py-1.5">
+                            {absent[i] ? (
+                              <span className="text-destructive">{absent[i].name}</span>
+                            ) : ""}
+                          </td>
+                        </tr>
+                      ));
+                    })()}
+                  </tbody>
+                </table>
               </div>
             </div>
           )}
