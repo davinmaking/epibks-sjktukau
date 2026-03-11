@@ -42,7 +42,7 @@ export default function StudentsPage() {
   const router = useRouter();
   const [students, setStudents] = useState<StudentRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [classFilter, setClassFilter] = useState<string>("all");
+  const [classFilter, setClassFilter] = useState<string>("全部班级");
 
   useEffect(() => {
     const fetchStudents = async () => {
@@ -65,7 +65,7 @@ export default function StudentsPage() {
   }, []);
 
   const filteredByClass = useMemo(() => {
-    if (classFilter === "all") return students;
+    if (classFilter === "全部班级") return students;
     return students.filter((s) => s.class_name === classFilter);
   }, [students, classFilter]);
 
@@ -114,7 +114,7 @@ export default function StudentsPage() {
               <SelectValue placeholder="所有班级" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">所有班级</SelectItem>
+              <SelectItem value="全部班级">全部班级</SelectItem>
               {CLASS_NAMES.map((cls) => (
                 <SelectItem key={cls} value={cls}>
                   {cls}
