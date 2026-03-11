@@ -71,35 +71,77 @@ export default function DashboardPage() {
     students: includedStudents,
   });
 
-  // Pie chart data for family attendance
+  // Colors for each class slice in the pie chart
+  const CLASS_COLORS: Record<string, string> = {
+    PRASEKOLAH: "oklch(0.75 0.15 150)",
+    JOYFUL: "oklch(0.70 0.15 60)",
+    SUNSHINE: "oklch(0.78 0.16 85)",
+    "T1 TEKUN": "oklch(0.65 0.20 250)",
+    "T2 KREATIF": "oklch(0.60 0.18 280)",
+    "T3 BERDIKARI": "oklch(0.68 0.16 200)",
+    "T4 BERJUANG": "oklch(0.62 0.20 30)",
+    "T5 SABAR": "oklch(0.55 0.22 320)",
+    "T6 BERJAYA": "oklch(0.58 0.18 170)",
+  };
+  const NOT_CHECKED_IN_COLOR = "oklch(0.85 0.02 0)";
+
+  // Pie chart data: one slice per class (checked-in count) + one "未签到" slice
   const familyPieData = useMemo(() => {
-    if (!ongoingEvent?.track_family) return null;
-    const checkedIn = overallStats.classLevelCheckedInFamilies;
-    const total = overallStats.classLevelTotalFamilies;
-    const notCheckedIn = total - checkedIn;
-    return [
-      { status: "checkedIn", count: checkedIn, fill: "var(--color-checkedIn)" },
-      { status: "notCheckedIn", count: notCheckedIn, fill: "var(--color-notCheckedIn)" },
-    ];
-  }, [ongoingEvent?.track_family, overallStats.classLevelCheckedInFamilies, overallStats.classLevelTotalFamilies]);
+    if (!ongoingEvent?.track_family || classStats.length === 0) return null;
+    const slices: { className: string; count: number; fill: string }[] = [];
+    for (const stat of classStats) {
+      if (stat.checkedInFamilies > 0) {
+        slices.push({
+          className: stat.className,
+          count: stat.checkedInFamilies,
+          fill: CLASS_COLORS[stat.className] ?? "var(--chart-1)",
+        });
+      }
+    }
+    const totalCheckedIn = overallStats.classLevelCheckedInFamilies;
+    const notCheckedIn = overallStats.classLevelTotalFamilies - totalCheckedIn;
+    if (notCheckedIn > 0) {
+      slices.push({
+        className: "notCheckedIn",
+        count: notCheckedIn,
+        fill: NOT_CHECKED_IN_COLOR,
+      });
+    }
+    return slices;
+  }, [ongoingEvent?.track_family, classStats, overallStats.classLevelCheckedInFamilies, overallStats.classLevelTotalFamilies]);
 
-  // Pie chart data for student attendance
   const studentPieData = useMemo(() => {
-    if (!ongoingEvent?.track_student) return null;
-    const checkedIn = overallStats.checkedInStudents;
-    const total = overallStats.totalStudents;
-    const notCheckedIn = total - checkedIn;
-    return [
-      { status: "checkedIn", count: checkedIn, fill: "var(--color-checkedIn)" },
-      { status: "notCheckedIn", count: notCheckedIn, fill: "var(--color-notCheckedIn)" },
-    ];
-  }, [ongoingEvent?.track_student, overallStats.checkedInStudents, overallStats.totalStudents]);
+    if (!ongoingEvent?.track_student || classStats.length === 0) return null;
+    const slices: { className: string; count: number; fill: string }[] = [];
+    for (const stat of classStats) {
+      if (stat.checkedInStudents > 0) {
+        slices.push({
+          className: stat.className,
+          count: stat.checkedInStudents,
+          fill: CLASS_COLORS[stat.className] ?? "var(--chart-1)",
+        });
+      }
+    }
+    const notCheckedIn = overallStats.totalStudents - overallStats.checkedInStudents;
+    if (notCheckedIn > 0) {
+      slices.push({
+        className: "notCheckedIn",
+        count: notCheckedIn,
+        fill: NOT_CHECKED_IN_COLOR,
+      });
+    }
+    return slices;
+  }, [ongoingEvent?.track_student, classStats, overallStats.checkedInStudents, overallStats.totalStudents]);
 
-  const pieChartConfig = {
-    count: { label: "人数" },
-    checkedIn: { label: "已签到", color: "var(--chart-1)" },
-    notCheckedIn: { label: "未签到", color: "var(--chart-4)" },
-  } satisfies ChartConfig;
+  // Build chart config dynamically from class names
+  const pieChartConfig = useMemo(() => {
+    const config: ChartConfig = { count: { label: "人数" } };
+    for (const cls of CLASS_NAMES) {
+      config[cls] = { label: cls, color: CLASS_COLORS[cls] ?? "var(--chart-1)" };
+    }
+    config.notCheckedIn = { label: "未签到", color: NOT_CHECKED_IN_COLOR };
+    return config;
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -277,7 +319,7 @@ export default function DashboardPage() {
                           >
                             <PieChart>
                               <ChartTooltip content={<ChartTooltipContent hideLabel />} />
-                              <Pie data={familyPieData} dataKey="count" label nameKey="status" />
+                              <Pie data={familyPieData} dataKey="count" label nameKey="className" />
                             </PieChart>
                           </ChartContainer>
                         </CardContent>
@@ -303,7 +345,7 @@ export default function DashboardPage() {
                           >
                             <PieChart>
                               <ChartTooltip content={<ChartTooltipContent hideLabel />} />
-                              <Pie data={studentPieData} dataKey="count" label nameKey="status" />
+                              <Pie data={studentPieData} dataKey="count" label nameKey="className" />
                             </PieChart>
                           </ChartContainer>
                         </CardContent>
