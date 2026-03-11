@@ -5,11 +5,9 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   Calendar,
-
   Users,
   UserCog,
   School,
-  ClipboardCheck,
   LogOut,
   Menu,
 } from "lucide-react";
@@ -41,7 +39,7 @@ const adminLinks: NavItem[] = [
 
 const teacherLinks: NavItem[] = [
   { href: "/home", label: "仪表盘", icon: LayoutDashboard },
-  { href: "/attendance", label: "出席记录", icon: ClipboardCheck },
+  { href: "/attendance", label: "活动管理", icon: Calendar },
   { href: "/my-class", label: "我的班级", icon: School },
 ];
 

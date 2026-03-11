@@ -6,9 +6,9 @@ import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Users, CalendarDays } from "lucide-react";
+import { Loader2, Users, CalendarDays, GraduationCap } from "lucide-react";
 import type { Tables } from "@/lib/types";
-import { formatDate } from "@/lib/utils";
+import { formatDateWithWeekday } from "@/lib/utils";
 
 type Event = Tables<"events">;
 
@@ -17,12 +17,11 @@ interface EventWithRate extends Event {
   totalFamilies: number;
 }
 
-export default function TeacherAttendancePage() {
+export default function TeacherEventsPage() {
   const { teacher } = useAuth();
   const router = useRouter();
   const [events, setEvents] = useState<EventWithRate[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
 
   useEffect(() => {
     if (!teacher?.class_name) {
@@ -33,34 +32,27 @@ export default function TeacherAttendancePage() {
     async function fetchEvents() {
       const supabase = createClient();
 
-      // Fetch all events
-      const { data: eventsData, error: eventsError } = await supabase
-        .from("events")
-        .select("*")
-        .order("date", { ascending: false });
+      const [eventsRes, studentsRes] = await Promise.all([
+        supabase
+          .from("events")
+          .select("*")
+          .order("date", { ascending: false }),
+        supabase
+          .from("students")
+          .select("family_id")
+          .eq("class_name", teacher!.class_name!),
+      ]);
 
-      if (eventsError || !eventsData) {
-        console.error("Failed to fetch events:", eventsError);
-        setError(true);
-        setLoading(false);
-        return;
-      }
-
-      // Get total families in this teacher's class
-      const { data: studentsData } = await supabase
-        .from("students")
-        .select("family_id")
-        .eq("class_name", teacher!.class_name!);
+      const eventsData = eventsRes.data ?? [];
+      const studentsList = studentsRes.data ?? [];
 
       const uniqueFamilyIds = new Set(
-        (studentsData ?? [])
+        studentsList
           .map((s) => s.family_id)
           .filter((id): id is string => id !== null)
       );
       const totalFamilies = uniqueFamilyIds.size;
 
-      // Batch fetch attendance for families in this class (by family_id, not class_name)
-      // This ensures families checked in by other classes' teachers are also counted
       const eventIds = eventsData.map((e) => e.id);
       const { data: attendanceData } = await supabase
         .from("family_attendance")
@@ -69,19 +61,23 @@ export default function TeacherAttendancePage() {
         .in("family_id", [...uniqueFamilyIds]);
 
       // Count unique families per event
-      const countByEvent = new Map<string, number>();
+      const countByEvent = new Map<string, Set<string>>();
       for (const record of attendanceData ?? []) {
-        countByEvent.set(record.event_id, (countByEvent.get(record.event_id) ?? 0) + 1);
+        if (!countByEvent.has(record.event_id)) {
+          countByEvent.set(record.event_id, new Set());
+        }
+        countByEvent.get(record.event_id)!.add(record.family_id);
       }
 
-      // Filter events that include this teacher's class
-      const relevantEvents = eventsData.filter((event) =>
-        !event.included_classes || event.included_classes.includes(teacher!.class_name!)
+      const relevantEvents = eventsData.filter(
+        (event) =>
+          !event.included_classes ||
+          event.included_classes.includes(teacher!.class_name!)
       );
 
       const eventsWithRates: EventWithRate[] = relevantEvents.map((event) => ({
         ...event,
-        checkedIn: countByEvent.get(event.id) ?? 0,
+        checkedIn: countByEvent.get(event.id)?.size ?? 0,
         totalFamilies,
       }));
 
@@ -112,57 +108,62 @@ export default function TeacherAttendancePage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">签到活动</h1>
+        <h1 className="text-2xl font-bold">活动管理</h1>
         <p className="text-sm text-muted-foreground">
-          {teacher.class_name} 班
+          {teacher.class_name} 班 · 共 {events.length} 个活动
         </p>
       </div>
 
-      {error ? (
-        <div className="flex h-48 flex-col items-center justify-center gap-2 rounded-lg border border-dashed text-destructive">
-          <CalendarDays className="size-10" />
-          <p>加载活动失败，请刷新重试</p>
-        </div>
-      ) : events.length === 0 ? (
-        <div className="flex h-48 flex-col items-center justify-center gap-2 rounded-lg border border-dashed text-muted-foreground">
-          <CalendarDays className="size-10" />
-          <p>暂无活动</p>
+      {events.length === 0 ? (
+        <div className="flex h-64 flex-col items-center justify-center gap-2 text-muted-foreground">
+          <CalendarDays className="size-12" />
+          <p className="text-lg font-medium">暂无活动</p>
         </div>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {events.map((event) => {
+            const isPast =
+              event.date < new Date().toISOString().split("T")[0];
             const rate =
               event.totalFamilies > 0
-                ? Math.round((event.checkedIn / event.totalFamilies) * 100)
+                ? Math.round(
+                    (event.checkedIn / event.totalFamilies) * 100
+                  )
                 : 0;
 
             return (
               <Card
                 key={event.id}
-                className="cursor-pointer transition-colors hover:bg-muted/50"
+                className={`cursor-pointer transition-shadow hover:shadow-md ${isPast ? "opacity-50" : ""}`}
                 onClick={() => router.push(`/attendance/${event.id}`)}
               >
-                <CardHeader>
-                  <CardTitle className="text-base">{event.name}</CardTitle>
+                <CardHeader className="pb-2">
+                  <CardTitle className="line-clamp-2 text-base">
+                    {event.name}
+                  </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <CalendarDays className="size-4 shrink-0" />
-                    <span>{formatDate(event.date)}</span>
+                    <span>{formatDateWithWeekday(event.date)}</span>
                   </div>
-
-                  <div className="flex flex-wrap gap-1.5">
+                  <div className="flex gap-2">
                     {event.track_family && (
-                      <Badge variant="outline">家庭</Badge>
+                      <Badge variant="outline">
+                        <Users className="size-3" />
+                        家庭
+                      </Badge>
                     )}
                     {event.track_student && (
-                      <Badge variant="outline">学生</Badge>
+                      <Badge variant="outline">
+                        <GraduationCap className="size-3" />
+                        学生
+                      </Badge>
                     )}
                   </div>
-
-                  {event.track_family && (
+                  {event.track_family && event.totalFamilies > 0 && (
                     <div className="space-y-1">
-                      <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center justify-between text-xs">
                         <span className="text-muted-foreground">
                           班级出席率
                         </span>
@@ -170,7 +171,7 @@ export default function TeacherAttendancePage() {
                           {event.checkedIn}/{event.totalFamilies} ({rate}%)
                         </span>
                       </div>
-                      <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+                      <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
                         <div
                           className="h-full rounded-full bg-primary transition-all"
                           style={{ width: `${rate}%` }}
