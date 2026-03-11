@@ -14,7 +14,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
+import { Loader2, Plus, X } from "lucide-react";
 import { toast } from "sonner";
 
 interface FamilyData {
@@ -30,6 +30,12 @@ interface FamilyData {
 interface StudentData {
   id: string;
   name: string;
+}
+
+interface OtherAttendee {
+  name: string;
+  ic: string;
+  relationship: string;
 }
 
 interface FamilyCheckInDialogProps {
@@ -49,6 +55,8 @@ interface FamilyCheckInDialogProps {
   onSuccess?: () => void;
 }
 
+const emptyOther = (): OtherAttendee => ({ name: "", ic: "", relationship: "" });
+
 export function FamilyCheckInDialog({
   open,
   onOpenChange,
@@ -66,10 +74,9 @@ export function FamilyCheckInDialog({
   // Guardian selections
   const [guardian1Selected, setGuardian1Selected] = useState(false);
   const [guardian2Selected, setGuardian2Selected] = useState(false);
-  const [otherSelected, setOtherSelected] = useState(false);
-  const [otherName, setOtherName] = useState("");
-  const [otherIc, setOtherIc] = useState("");
-  const [otherRelationship, setOtherRelationship] = useState("");
+
+  // Multiple "other" attendees
+  const [others, setOthers] = useState<OtherAttendee[]>([]);
 
   // Student selections
   const [selectedStudentIds, setSelectedStudentIds] = useState<Set<string>>(new Set());
@@ -81,10 +88,7 @@ export function FamilyCheckInDialog({
     if (!open) {
       setGuardian1Selected(false);
       setGuardian2Selected(false);
-      setOtherSelected(false);
-      setOtherName("");
-      setOtherIc("");
-      setOtherRelationship("");
+      setOthers([]);
       setSelectedStudentIds(new Set());
       return;
     }
@@ -98,7 +102,7 @@ export function FamilyCheckInDialog({
   }, [open, family, trackFamily, trackStudent, familyAlreadyCheckedIn, checkedInStudentIds]);
 
   const hasGuardian2 = !!family.guardian2_name;
-  const anyGuardianSelected = guardian1Selected || guardian2Selected || otherSelected;
+  const anyGuardianSelected = guardian1Selected || guardian2Selected || others.length > 0;
 
   // Whether family attendance needs to be submitted
   const needsFamilySubmit = trackFamily && !familyAlreadyCheckedIn && anyGuardianSelected;
@@ -114,11 +118,27 @@ export function FamilyCheckInDialog({
 
   const canSubmit = needsFamilySubmit || hasStudentChanges;
 
+  function addOther() {
+    setOthers((prev) => [...prev, emptyOther()]);
+  }
+
+  function removeOther(index: number) {
+    setOthers((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  function updateOther(index: number, field: keyof OtherAttendee, value: string) {
+    setOthers((prev) =>
+      prev.map((o, i) => (i === index ? { ...o, [field]: value } : o))
+    );
+  }
+
   async function handleConfirm() {
-    // Validate "其他" fields
-    if (otherSelected && !otherName.trim()) {
-      toast.error("请输入「其他」出席者的姓名");
-      return;
+    // Validate "其他" fields — each must have a name
+    for (let i = 0; i < others.length; i++) {
+      if (!others[i].name.trim()) {
+        toast.error(`请输入第 ${i + 1} 位其他出席者的姓名`);
+        return;
+      }
     }
 
     setSubmitting(true);
@@ -145,12 +165,12 @@ export function FamilyCheckInDialog({
           relationship: family.guardian2_relationship ?? "",
         });
       }
-      if (otherSelected) {
+      for (const other of others) {
         attendees.push({
           type: "其他",
-          name: otherName.trim(),
-          ic: otherIc.trim(),
-          relationship: otherRelationship.trim(),
+          name: other.name.trim(),
+          ic: other.ic.trim(),
+          relationship: other.relationship.trim(),
         });
       }
 
@@ -299,68 +319,71 @@ export function FamilyCheckInDialog({
                     </label>
                   )}
 
-                  {/* Other */}
-                  <div className="space-y-2">
-                    <label
-                      className={`flex min-h-[48px] cursor-pointer items-center gap-3 rounded-lg border p-3 transition-all duration-200 active:scale-[0.98] ${
-                        otherSelected
-                          ? "border-primary/30 bg-primary/5"
-                          : "hover:bg-muted/50"
-                      }`}
-                    >
-                      <Checkbox
-                        checked={otherSelected}
-                        onCheckedChange={(c) => setOtherSelected(c === true)}
-                        className="size-5"
-                      />
-                      <span className={otherSelected ? "font-medium" : ""}>其他</span>
-                    </label>
-
-                    {otherSelected && (
-                      <div className="ml-4 space-y-2 border-l-2 border-primary/20 pl-4">
-                        <div className="space-y-1">
-                          <label htmlFor="other-name" className="text-xs font-medium text-muted-foreground">
-                            姓名 <span className="text-destructive">*</span>
-                          </label>
-                          <Input
-                            id="other-name"
-                            value={otherName}
-                            onChange={(e) => setOtherName(e.target.value)}
-                            placeholder="出席者姓名"
-                            className="min-h-[40px] text-sm"
-                            autoComplete="off"
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <label htmlFor="other-ic" className="text-xs font-medium text-muted-foreground">
-                            身份证号码
-                          </label>
-                          <Input
-                            id="other-ic"
-                            value={otherIc}
-                            onChange={(e) => setOtherIc(e.target.value)}
-                            placeholder="身份证号码（选填）"
-                            className="min-h-[40px] text-sm"
-                            inputMode="numeric"
-                            autoComplete="off"
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <label htmlFor="other-rel" className="text-xs font-medium text-muted-foreground">
-                            关系
-                          </label>
-                          <Input
-                            id="other-rel"
-                            value={otherRelationship}
-                            onChange={(e) => setOtherRelationship(e.target.value)}
-                            placeholder="与学生的关系（选填）"
-                            className="min-h-[40px] text-sm"
-                            autoComplete="off"
-                          />
-                        </div>
+                  {/* Other attendees */}
+                  {others.map((other, index) => (
+                    <div key={index} className="space-y-2 rounded-lg border border-primary/20 bg-primary/5 p-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-medium text-muted-foreground">
+                          其他出席者 {others.length > 1 ? index + 1 : ""}
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="size-7 text-muted-foreground hover:text-destructive"
+                          onClick={() => removeOther(index)}
+                        >
+                          <X className="size-3.5" />
+                        </Button>
                       </div>
-                    )}
-                  </div>
+                      <div className="space-y-1">
+                        <label className="text-xs font-medium text-muted-foreground">
+                          姓名 <span className="text-destructive">*</span>
+                        </label>
+                        <Input
+                          value={other.name}
+                          onChange={(e) => updateOther(index, "name", e.target.value)}
+                          placeholder="出席者姓名"
+                          className="min-h-[40px] text-sm"
+                          autoComplete="off"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs font-medium text-muted-foreground">
+                          身份证号码
+                        </label>
+                        <Input
+                          value={other.ic}
+                          onChange={(e) => updateOther(index, "ic", e.target.value)}
+                          placeholder="身份证号码（选填）"
+                          className="min-h-[40px] text-sm"
+                          inputMode="numeric"
+                          autoComplete="off"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs font-medium text-muted-foreground">
+                          关系
+                        </label>
+                        <Input
+                          value={other.relationship}
+                          onChange={(e) => updateOther(index, "relationship", e.target.value)}
+                          placeholder="与学生的关系（选填）"
+                          className="min-h-[40px] text-sm"
+                          autoComplete="off"
+                        />
+                      </div>
+                    </div>
+                  ))}
+
+                  {/* Add other button */}
+                  <Button
+                    variant="outline"
+                    className="w-full gap-1.5"
+                    onClick={addOther}
+                  >
+                    <Plus className="size-4" />
+                    添加其他出席者
+                  </Button>
                 </div>
               )}
             </div>
