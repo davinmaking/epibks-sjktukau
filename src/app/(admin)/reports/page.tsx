@@ -223,16 +223,15 @@ export default function ReportsPage() {
     return includedClassNames.map((className) => {
       const classStudents = students.filter((s) => s.class_name === className);
       const totalStudents = classStudents.length;
-      const classFamilyIds = new Set(
-        classStudents.map((s) => s.family_id).filter((id): id is string => id !== null)
-      );
-      const totalFamilies = classFamilyIds.size;
+      // Use student count as family total (twins count as 2)
+      const totalFamilies = totalStudents;
 
-      // Count families checked in: match by family_id, not class_name
-      // This ensures sibling families checked in by another class are counted
+      // Count per student: if their family checked in, count 1
       let checkedFamilies = 0;
-      for (const fid of classFamilyIds) {
-        if (allCheckedInFamilyIds.has(fid)) checkedFamilies++;
+      for (const s of classStudents) {
+        if (s.family_id && allCheckedInFamilyIds.has(s.family_id)) {
+          checkedFamilies++;
+        }
       }
 
       const classStudentIds = new Set(classStudents.map((s) => s.id));
@@ -282,15 +281,15 @@ export default function ReportsPage() {
 
       const yearStudents = students.filter((s) => classesInYear.includes(s.class_name));
       const totalStudents = yearStudents.length;
-      const yearFamilyIds = new Set(
-        yearStudents.map((s) => s.family_id).filter((id): id is string => id !== null)
-      );
-      const totalFamilies = yearFamilyIds.size;
+      // Use student count as family total (twins count as 2)
+      const totalFamilies = totalStudents;
 
-      // Count by family_id match, not class_name (sibling sync)
+      // Count per student: if their family checked in, count 1
       let checkedFamilies = 0;
-      for (const fid of yearFamilyIds) {
-        if (allCheckedInFamilyIds.has(fid)) checkedFamilies++;
+      for (const s of yearStudents) {
+        if (s.family_id && allCheckedInFamilyIds.has(s.family_id)) {
+          checkedFamilies++;
+        }
       }
 
       const yearStudentIds = new Set(yearStudents.map((s) => s.id));

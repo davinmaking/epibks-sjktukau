@@ -120,13 +120,27 @@ export function useAttendanceStats(params: UseAttendanceStatsParams): {
       allClasses.add(student.class_name);
     }
 
+    // Count family-checked-in per class by student count
+    // (twins in same class: family checks in once, but counts for both students)
+    const familyCheckedInByStudentPerClass = new Map<string, number>();
+    for (const student of students) {
+      if (student.family_id && allCheckedInFamilyIds.has(student.family_id)) {
+        const cls = student.class_name;
+        familyCheckedInByStudentPerClass.set(
+          cls,
+          (familyCheckedInByStudentPerClass.get(cls) ?? 0) + 1
+        );
+      }
+    }
+
     // Build class stats
+    // totalFamilies = student count (school's method: each student counts as 1, even twins)
     let classStats: ClassStat[] = [];
     for (const cls of allClasses) {
       const yearLevel = CLASS_YEAR_MAP[cls] ?? cls;
-      const totalFamilies = classFamilyIds.get(cls)?.size ?? 0;
-      const checkedInFamilies = checkedInFamiliesPerClass.get(cls)?.size ?? 0;
       const totalStudents = classStudentCount.get(cls) ?? 0;
+      const totalFamilies = totalStudents; // per student basis
+      const checkedInFamilies = familyCheckedInByStudentPerClass.get(cls) ?? 0;
       const checkedInStudents = checkedInStudentsPerClass.get(cls) ?? 0;
 
       classStats.push({
