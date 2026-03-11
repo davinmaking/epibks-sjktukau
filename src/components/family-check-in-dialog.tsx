@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { ATTENDEE_TYPES, type AttendeeEntry } from "@/lib/constants";
+import type { AttendeeEntry } from "@/lib/constants";
 import {
   Dialog,
   DialogContent,
@@ -27,144 +27,139 @@ interface FamilyData {
   guardian2_ic: string | null;
 }
 
+interface StudentData {
+  id: string;
+  name: string;
+}
+
 interface FamilyCheckInDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   family: FamilyData;
+  students: StudentData[];
   eventId: string;
   className: string;
   teacherId: string;
+  trackFamily: boolean;
+  trackStudent: boolean;
+  /** Already checked-in student IDs (to pre-check them) */
+  checkedInStudentIds?: Set<string>;
+  /** Whether this family already has a family_attendance record */
+  familyAlreadyCheckedIn?: boolean;
   onSuccess?: () => void;
-  /** If true, auto-submit with pre-filled data without showing the dialog */
-  quickCheckIn?: boolean;
-}
-
-interface AttendeeFormData {
-  name: string;
-  ic: string;
-  relationship: string;
 }
 
 export function FamilyCheckInDialog({
   open,
   onOpenChange,
   family,
+  students,
   eventId,
   className,
   teacherId,
+  trackFamily,
+  trackStudent,
+  checkedInStudentIds,
+  familyAlreadyCheckedIn,
   onSuccess,
-  quickCheckIn,
 }: FamilyCheckInDialogProps) {
-  const [selectedTypes, setSelectedTypes] = useState<Set<string>>(new Set());
-  const [attendeeData, setAttendeeData] = useState<Map<string, AttendeeFormData>>(new Map());
+  // Guardian selections
+  const [guardian1Selected, setGuardian1Selected] = useState(false);
+  const [guardian2Selected, setGuardian2Selected] = useState(false);
+  const [otherSelected, setOtherSelected] = useState(false);
+  const [otherName, setOtherName] = useState("");
+  const [otherIc, setOtherIc] = useState("");
+  const [otherRelationship, setOtherRelationship] = useState("");
+
+  // Student selections
+  const [selectedStudentIds, setSelectedStudentIds] = useState<Set<string>>(new Set());
+
   const [submitting, setSubmitting] = useState(false);
 
-  // Known relationship types from ATTENDEE_TYPES
-  const FATHER = ATTENDEE_TYPES[0].value; // 父亲
-  const MOTHER = ATTENDEE_TYPES[1].value; // 母亲
-  const GUARDIAN = ATTENDEE_TYPES[2].value; // 监护人
-
-  // Auto-fill helper: get guardian data for a given type
-  const getAutoFillData = useCallback(
-    (type: string): AttendeeFormData => {
-      if (type === FATHER) {
-        if (family.guardian1_relationship === FATHER) {
-          return { name: family.guardian1_name, ic: family.guardian1_ic, relationship: FATHER };
-        }
-        if (family.guardian2_relationship === FATHER) {
-          return { name: family.guardian2_name ?? "", ic: family.guardian2_ic ?? "", relationship: FATHER };
-        }
-        return { name: "", ic: "", relationship: FATHER };
-      }
-
-      if (type === MOTHER) {
-        if (family.guardian2_relationship === MOTHER) {
-          return { name: family.guardian2_name ?? "", ic: family.guardian2_ic ?? "", relationship: MOTHER };
-        }
-        if (family.guardian1_relationship === MOTHER) {
-          return { name: family.guardian1_name, ic: family.guardian1_ic, relationship: MOTHER };
-        }
-        return { name: "", ic: "", relationship: MOTHER };
-      }
-
-      if (type === GUARDIAN) {
-        if (
-          family.guardian1_relationship &&
-          family.guardian1_relationship !== FATHER &&
-          family.guardian1_relationship !== MOTHER
-        ) {
-          return { name: family.guardian1_name, ic: family.guardian1_ic, relationship: family.guardian1_relationship };
-        }
-        if (
-          family.guardian2_relationship &&
-          family.guardian2_relationship !== FATHER &&
-          family.guardian2_relationship !== MOTHER
-        ) {
-          return { name: family.guardian2_name ?? "", ic: family.guardian2_ic ?? "", relationship: family.guardian2_relationship };
-        }
-        return { name: "", ic: "", relationship: GUARDIAN };
-      }
-
-      // 其他
-      return { name: "", ic: "", relationship: "" };
-    },
-    [family, FATHER, MOTHER, GUARDIAN]
-  );
-
-  // Reset form when dialog closes; pre-select types with stored guardian data when opening
+  // Reset form when dialog opens/closes
   useEffect(() => {
     if (!open) {
-      setSelectedTypes(new Set());
-      setAttendeeData(new Map());
+      setGuardian1Selected(false);
+      setGuardian2Selected(false);
+      setOtherSelected(false);
+      setOtherName("");
+      setOtherIc("");
+      setOtherRelationship("");
+      setSelectedStudentIds(new Set());
       return;
     }
 
-    // Auto-pre-select attendee types that have stored guardian data
-    const preSelected = new Set<string>();
-    const preData = new Map<string, AttendeeFormData>();
-
-    for (const type of ATTENDEE_TYPES) {
-      const autoFill = getAutoFillData(type.value);
-      if (autoFill.name.trim()) {
-        preSelected.add(type.value);
-        preData.set(type.value, autoFill);
-      }
+    // Pre-select guardians if family not yet checked in
+    if (trackFamily && !familyAlreadyCheckedIn) {
+      setGuardian1Selected(!!family.guardian1_name);
+      setGuardian2Selected(!!family.guardian2_name);
     }
 
-    if (preSelected.size > 0) {
-      setSelectedTypes(preSelected);
-      setAttendeeData(preData);
+    // Pre-select already checked-in students
+    if (trackStudent && checkedInStudentIds) {
+      setSelectedStudentIds(new Set(checkedInStudentIds));
     }
-  }, [open, getAutoFillData]);
+  }, [open, family, trackFamily, trackStudent, familyAlreadyCheckedIn, checkedInStudentIds]);
 
-  // Quick check-in: auto-submit when pre-filled data is available
-  useEffect(() => {
-    if (!open || !quickCheckIn) return;
+  const hasGuardian2 = !!family.guardian2_name;
+  const anyGuardianSelected = guardian1Selected || guardian2Selected || otherSelected;
 
-    // Build attendees from pre-filled data
-    const autoAttendees: AttendeeEntry[] = [];
-    for (const type of ATTENDEE_TYPES) {
-      const autoFill = getAutoFillData(type.value);
-      if (autoFill.name.trim()) {
-        autoAttendees.push({
-          type: type.value,
-          name: autoFill.name.trim(),
-          ic: autoFill.ic.trim(),
-          relationship: autoFill.relationship.trim(),
+  // Whether family attendance needs to be submitted
+  const needsFamilySubmit = trackFamily && !familyAlreadyCheckedIn && anyGuardianSelected;
+
+  // Which students changed (newly checked or unchecked)
+  const studentsToCheckIn = trackStudent
+    ? students.filter((s) => selectedStudentIds.has(s.id) && !checkedInStudentIds?.has(s.id))
+    : [];
+  const studentsToUncheck = trackStudent
+    ? students.filter((s) => !selectedStudentIds.has(s.id) && checkedInStudentIds?.has(s.id))
+    : [];
+  const hasStudentChanges = studentsToCheckIn.length > 0 || studentsToUncheck.length > 0;
+
+  const canSubmit = needsFamilySubmit || hasStudentChanges;
+
+  async function handleConfirm() {
+    // Validate "其他" fields
+    if (otherSelected && !otherName.trim()) {
+      toast.error("请输入「其他」出席者的姓名");
+      return;
+    }
+
+    setSubmitting(true);
+    const supabase = createClient();
+    let hasError = false;
+
+    // 1. Family attendance insert
+    if (needsFamilySubmit) {
+      const attendees: AttendeeEntry[] = [];
+
+      if (guardian1Selected) {
+        attendees.push({
+          type: family.guardian1_relationship ?? "监护人",
+          name: family.guardian1_name,
+          ic: family.guardian1_ic,
+          relationship: family.guardian1_relationship ?? "",
         });
       }
-    }
+      if (guardian2Selected && family.guardian2_name) {
+        attendees.push({
+          type: family.guardian2_relationship ?? "监护人",
+          name: family.guardian2_name,
+          ic: family.guardian2_ic ?? "",
+          relationship: family.guardian2_relationship ?? "",
+        });
+      }
+      if (otherSelected) {
+        attendees.push({
+          type: "其他",
+          name: otherName.trim(),
+          ic: otherIc.trim(),
+          relationship: otherRelationship.trim(),
+        });
+      }
 
-    if (autoAttendees.length === 0) return; // no pre-filled data, show dialog normally
-
-    // Submit directly
-    const first = autoAttendees[0];
-    setSubmitting(true);
-
-    const supabase = createClient();
-    supabase
-      .from("family_attendance")
-      .insert({
+      const first = attendees[0];
+      const { error } = await supabase.from("family_attendance").insert({
         event_id: eventId,
         family_id: family.id,
         class_name: className,
@@ -172,125 +167,66 @@ export function FamilyCheckInDialog({
         attendee_name: first.name || null,
         attendee_ic: first.ic || null,
         attendee_relationship: first.relationship || null,
-        attendees: autoAttendees as unknown as Record<string, unknown>[],
+        attendees: attendees as unknown as Record<string, unknown>[],
         checked_in_by: teacherId,
-      })
-      .then(({ error }) => {
-        setSubmitting(false);
-        if (error) {
-          if (error.code === "23505") {
-            toast.error("该家庭已签到");
-          } else {
-            console.error("Quick check-in error:", error);
-            toast.error("签到失败，请重试");
-          }
+      });
+
+      if (error) {
+        hasError = true;
+        if (error.code === "23505") {
+          toast.error("该家庭已签到");
         } else {
-          toast.success(`${family.guardian1_name} 签到成功`, {
-            description: autoAttendees.map((a) => a.type).join("、"),
-          });
-          onSuccess?.();
+          console.error("Family check-in error:", error);
+          toast.error("家长签到失败，请重试");
         }
-        onOpenChange(false);
-      });
-  }, [open, quickCheckIn, family, eventId, className, teacherId, getAutoFillData, onOpenChange, onSuccess]);
-
-  // If quick check-in mode, don't render the dialog UI (submission happens via effect)
-  if (quickCheckIn && open) {
-    return null;
-  }
-
-  function handleToggleType(type: string, checked: boolean) {
-    if (checked) {
-      setSelectedTypes((prev) => new Set(prev).add(type));
-      setAttendeeData((prevData) => {
-        const nextData = new Map(prevData);
-        nextData.set(type, getAutoFillData(type));
-        return nextData;
-      });
-    } else {
-      setSelectedTypes((prev) => {
-        const next = new Set(prev);
-        next.delete(type);
-        return next;
-      });
-      setAttendeeData((prevData) => {
-        const nextData = new Map(prevData);
-        nextData.delete(type);
-        return nextData;
-      });
-    }
-  }
-
-  function updateAttendeeField(type: string, field: keyof AttendeeFormData, value: string) {
-    setAttendeeData((prev) => {
-      const next = new Map(prev);
-      const current = next.get(type) ?? { name: "", ic: "", relationship: "" };
-      next.set(type, { ...current, [field]: value });
-      return next;
-    });
-  }
-
-  async function handleConfirm() {
-    if (selectedTypes.size === 0) {
-      toast.error("请至少选择一个出席者类型");
-      return;
-    }
-
-    // Validate: all selected types need a name
-    for (const type of selectedTypes) {
-      const data = attendeeData.get(type);
-      if (!data?.name.trim()) {
-        toast.error(`请输入${type}的姓名`);
-        return;
       }
     }
 
-    // Build attendees array
-    const attendees: AttendeeEntry[] = [];
-    for (const type of ATTENDEE_TYPES) {
-      if (selectedTypes.has(type.value)) {
-        const data = attendeeData.get(type.value)!;
-        attendees.push({
-          type: type.value,
-          name: data.name.trim(),
-          ic: data.ic.trim(),
-          relationship: data.relationship.trim(),
-        });
+    // 2. Student check-ins (upsert new ones)
+    if (!hasError && studentsToCheckIn.length > 0) {
+      const records = studentsToCheckIn.map((s) => ({
+        event_id: eventId,
+        student_id: s.id,
+        checked_in_by: teacherId,
+      }));
+      const { error } = await supabase
+        .from("student_attendance")
+        .upsert(records, { onConflict: "event_id,student_id" });
+
+      if (error) {
+        hasError = true;
+        console.error("Student check-in error:", error);
+        toast.error("学生签到失败，请重试");
       }
     }
 
-    // First attendee used for legacy columns
-    const first = attendees[0];
+    // 3. Student unchecks (delete)
+    if (!hasError && studentsToUncheck.length > 0) {
+      const { error } = await supabase
+        .from("student_attendance")
+        .delete()
+        .eq("event_id", eventId)
+        .in("student_id", studentsToUncheck.map((s) => s.id));
 
-    setSubmitting(true);
-
-    const supabase = createClient();
-    const { error } = await supabase.from("family_attendance").insert({
-      event_id: eventId,
-      family_id: family.id,
-      class_name: className,
-      attendee_type: first.type,
-      attendee_name: first.name || null,
-      attendee_ic: first.ic || null,
-      attendee_relationship: first.relationship || null,
-      attendees: attendees as unknown as Record<string, unknown>[],
-      checked_in_by: teacherId,
-    });
+      if (error) {
+        hasError = true;
+        console.error("Student uncheck error:", error);
+        toast.error("取消学生签到失败");
+      }
+    }
 
     setSubmitting(false);
 
-    if (error) {
-      if (error.code === "23505") {
-        toast.error("该家庭已签到");
-      } else {
-        console.error("Check-in error:", error);
-        toast.error("签到失败，请重试");
-      }
-      return;
-    }
+    if (hasError) return;
+
+    // Build success message
+    const parts: string[] = [];
+    if (needsFamilySubmit) parts.push("家庭出席已记录");
+    if (studentsToCheckIn.length > 0) parts.push(`${studentsToCheckIn.length}名学生已签到`);
+    if (studentsToUncheck.length > 0) parts.push(`${studentsToUncheck.length}名学生已取消`);
+    toast.success(parts.join("，") || "已更新");
 
     onOpenChange(false);
-    toast.success("签到成功");
     onSuccess?.();
   }
 
@@ -298,117 +234,192 @@ export function FamilyCheckInDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>家庭签到</DialogTitle>
+          <DialogTitle>出席登记</DialogTitle>
           <DialogDescription>
-            为 {family.guardian1_name} 的家庭进行签到
+            {students.map((s) => s.name).join("、")} 的家庭
           </DialogDescription>
         </DialogHeader>
 
-        <div className="touch-manipulation space-y-3 py-2">
-          <p className="text-sm font-medium">选择出席者（可多选）</p>
+        <div className="touch-manipulation space-y-5 py-2">
+          {/* Family / Guardian attendance */}
+          {trackFamily && (
+            <div className="space-y-2">
+              <p className="text-sm font-medium">
+                家长出席
+                {familyAlreadyCheckedIn && (
+                  <span className="ml-2 text-xs font-normal text-green-600">已签到</span>
+                )}
+              </p>
 
-          {ATTENDEE_TYPES.map((type) => {
-            const isSelected = selectedTypes.has(type.value);
-            const data = attendeeData.get(type.value);
+              {familyAlreadyCheckedIn ? (
+                <p className="text-xs text-muted-foreground">此家庭已完成家长签到</p>
+              ) : (
+                <div className="space-y-1.5">
+                  {/* Guardian 1 */}
+                  <label
+                    className={`flex min-h-[48px] cursor-pointer items-center gap-3 rounded-lg border p-3 transition-all duration-200 active:scale-[0.98] ${
+                      guardian1Selected
+                        ? "border-primary/30 bg-primary/5"
+                        : "hover:bg-muted/50"
+                    }`}
+                  >
+                    <Checkbox
+                      checked={guardian1Selected}
+                      onCheckedChange={(c) => setGuardian1Selected(c === true)}
+                      className="size-5"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className={guardian1Selected ? "font-medium" : ""}>
+                        {family.guardian1_name}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {family.guardian1_relationship ?? "监护人"} · {family.guardian1_ic}
+                      </p>
+                    </div>
+                  </label>
 
-            return (
-              <div key={type.value} className="space-y-2">
-                {/* Checkbox row */}
-                <label
-                  className={`flex min-h-[48px] cursor-pointer items-center gap-3 rounded-lg border p-3 transition-all duration-200 active:scale-[0.98] ${
-                    isSelected
-                      ? "border-primary/30 bg-primary/5"
-                      : "hover:bg-muted/50"
-                  }`}
-                >
-                  <Checkbox
-                    checked={isSelected}
-                    onCheckedChange={(checked) =>
-                      handleToggleType(type.value, checked === true)
-                    }
-                    className="size-5"
-                  />
-                  <span className={isSelected ? "font-medium" : ""}>
-                    {type.label}
-                  </span>
-                  {isSelected && data?.name && (
-                    <span className="ml-auto text-xs text-muted-foreground">
-                      {data.name}
-                    </span>
+                  {/* Guardian 2 */}
+                  {hasGuardian2 && (
+                    <label
+                      className={`flex min-h-[48px] cursor-pointer items-center gap-3 rounded-lg border p-3 transition-all duration-200 active:scale-[0.98] ${
+                        guardian2Selected
+                          ? "border-primary/30 bg-primary/5"
+                          : "hover:bg-muted/50"
+                      }`}
+                    >
+                      <Checkbox
+                        checked={guardian2Selected}
+                        onCheckedChange={(c) => setGuardian2Selected(c === true)}
+                        className="size-5"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p className={guardian2Selected ? "font-medium" : ""}>
+                          {family.guardian2_name}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {family.guardian2_relationship ?? "监护人"} · {family.guardian2_ic ?? ""}
+                        </p>
+                      </div>
+                    </label>
                   )}
-                </label>
 
-                {/* Expanded fields when selected */}
-                {isSelected && data && (
-                  <div className="ml-4 space-y-2 border-l-2 border-primary/20 pl-4">
-                    <div className="space-y-1">
-                      <label htmlFor={`attendee-name-${type.value}`} className="text-xs font-medium text-muted-foreground">
-                        姓名 <span className="text-destructive">*</span>
-                      </label>
-                      <Input
-                        id={`attendee-name-${type.value}`}
-                        value={data.name}
-                        onChange={(e) =>
-                          updateAttendeeField(type.value, "name", e.target.value)
-                        }
-                        placeholder="出席者姓名"
-                        className="min-h-[40px] text-sm"
-                        autoComplete="off"
+                  {/* Other */}
+                  <div className="space-y-2">
+                    <label
+                      className={`flex min-h-[48px] cursor-pointer items-center gap-3 rounded-lg border p-3 transition-all duration-200 active:scale-[0.98] ${
+                        otherSelected
+                          ? "border-primary/30 bg-primary/5"
+                          : "hover:bg-muted/50"
+                      }`}
+                    >
+                      <Checkbox
+                        checked={otherSelected}
+                        onCheckedChange={(c) => setOtherSelected(c === true)}
+                        className="size-5"
                       />
-                    </div>
-                    <div className="space-y-1">
-                      <label htmlFor={`attendee-ic-${type.value}`} className="text-xs font-medium text-muted-foreground">
-                        身份证号码
-                      </label>
-                      <Input
-                        id={`attendee-ic-${type.value}`}
-                        value={data.ic}
-                        onChange={(e) =>
-                          updateAttendeeField(type.value, "ic", e.target.value)
-                        }
-                        placeholder="身份证号码（选填）"
-                        className="min-h-[40px] text-sm"
-                        inputMode="numeric"
-                        autoComplete="off"
-                      />
-                    </div>
-                    {type.value === "其他" && (
-                      <div className="space-y-1">
-                        <label htmlFor={`attendee-rel-${type.value}`} className="text-xs font-medium text-muted-foreground">
-                          关系
-                        </label>
-                        <Input
-                          id={`attendee-rel-${type.value}`}
-                          value={data.relationship}
-                          onChange={(e) =>
-                            updateAttendeeField(type.value, "relationship", e.target.value)
-                          }
-                          placeholder="与学生的关系（选填）"
-                          className="min-h-[40px] text-sm"
-                          autoComplete="off"
-                        />
+                      <span className={otherSelected ? "font-medium" : ""}>其他</span>
+                    </label>
+
+                    {otherSelected && (
+                      <div className="ml-4 space-y-2 border-l-2 border-primary/20 pl-4">
+                        <div className="space-y-1">
+                          <label htmlFor="other-name" className="text-xs font-medium text-muted-foreground">
+                            姓名 <span className="text-destructive">*</span>
+                          </label>
+                          <Input
+                            id="other-name"
+                            value={otherName}
+                            onChange={(e) => setOtherName(e.target.value)}
+                            placeholder="出席者姓名"
+                            className="min-h-[40px] text-sm"
+                            autoComplete="off"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label htmlFor="other-ic" className="text-xs font-medium text-muted-foreground">
+                            身份证号码
+                          </label>
+                          <Input
+                            id="other-ic"
+                            value={otherIc}
+                            onChange={(e) => setOtherIc(e.target.value)}
+                            placeholder="身份证号码（选填）"
+                            className="min-h-[40px] text-sm"
+                            inputMode="numeric"
+                            autoComplete="off"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label htmlFor="other-rel" className="text-xs font-medium text-muted-foreground">
+                            关系
+                          </label>
+                          <Input
+                            id="other-rel"
+                            value={otherRelationship}
+                            onChange={(e) => setOtherRelationship(e.target.value)}
+                            placeholder="与学生的关系（选填）"
+                            className="min-h-[40px] text-sm"
+                            autoComplete="off"
+                          />
+                        </div>
                       </div>
                     )}
                   </div>
-                )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Student attendance */}
+          {trackStudent && (
+            <div className="space-y-2">
+              <p className="text-sm font-medium">学生出席</p>
+              <div className="space-y-1.5">
+                {students.map((student) => {
+                  const isChecked = selectedStudentIds.has(student.id);
+                  return (
+                    <label
+                      key={student.id}
+                      className={`flex min-h-[48px] cursor-pointer items-center gap-3 rounded-lg border p-3 transition-all duration-200 active:scale-[0.98] ${
+                        isChecked
+                          ? "border-green-200 bg-green-50/50 dark:border-green-900 dark:bg-green-950/20"
+                          : "hover:bg-muted/50"
+                      }`}
+                    >
+                      <Checkbox
+                        checked={isChecked}
+                        onCheckedChange={(c) => {
+                          setSelectedStudentIds((prev) => {
+                            const next = new Set(prev);
+                            if (c === true) {
+                              next.add(student.id);
+                            } else {
+                              next.delete(student.id);
+                            }
+                            return next;
+                          });
+                        }}
+                        className="size-5"
+                      />
+                      <span className={isChecked ? "font-medium" : ""}>
+                        {student.name}
+                      </span>
+                    </label>
+                  );
+                })}
               </div>
-            );
-          })}
+            </div>
+          )}
         </div>
 
         <DialogFooter>
           <Button
             onClick={handleConfirm}
-            disabled={submitting || selectedTypes.size === 0}
+            disabled={submitting || !canSubmit}
             className="min-h-[48px] w-full text-base"
           >
             {submitting && <Loader2 className="size-4 animate-spin" />}
-            确认签到
-            {selectedTypes.size > 0 && (
-              <span className="ml-1 text-sm opacity-70">
-                ({selectedTypes.size}人)
-              </span>
-            )}
+            确认
           </Button>
         </DialogFooter>
       </DialogContent>
