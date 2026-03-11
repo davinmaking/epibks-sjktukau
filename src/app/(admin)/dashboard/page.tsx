@@ -492,10 +492,10 @@ export default function DashboardPage() {
             </Button>
             <Button
               variant="outline"
-              render={<Link href="/reports" />}
+              render={<Link href="/events" />}
             >
               <BarChart3 className="size-4" data-icon="inline-start" />
-              查看报告
+              活动管理
             </Button>
             <Button
               variant="outline"

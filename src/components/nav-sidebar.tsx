@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   Calendar,
-  BarChart3,
+
   Users,
   UserCog,
   School,
@@ -34,8 +34,7 @@ interface NavItem {
 
 const adminLinks: NavItem[] = [
   { href: "/dashboard", label: "仪表板", icon: LayoutDashboard },
-  { href: "/events", label: "活动", icon: Calendar },
-  { href: "/reports", label: "报告", icon: BarChart3 },
+  { href: "/events", label: "活动管理", icon: Calendar },
   { href: "/students", label: "学生", icon: Users },
   { href: "/users", label: "用户管理", icon: UserCog },
 ];
