@@ -25,12 +25,13 @@ export function formatDateShort(dateStr: string): string {
 
 export function formatDateWithWeekday(dateStr: string): string {
   const date = new Date(dateStr + "T00:00:00");
-  return date.toLocaleDateString("zh-CN", {
+  const datePart = date.toLocaleDateString("zh-CN", {
     year: "numeric",
     month: "long",
     day: "numeric",
-    weekday: "long",
   });
+  const weekday = date.toLocaleDateString("zh-CN", { weekday: "long" });
+  return `${datePart}(${weekday})`;
 }
 
 export function formatTime(date: string | Date): string {
