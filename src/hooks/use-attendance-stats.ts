@@ -180,33 +180,34 @@ export function useAttendanceStats(params: UseAttendanceStatsParams): {
       });
     }
 
-    // Overall stats
-    const overallStats: OverallStats = classStats.reduce(
-      (acc, cs) => ({
-        totalFamilies: acc.totalFamilies + cs.totalFamilies,
-        checkedInFamilies: acc.checkedInFamilies + cs.checkedInFamilies,
-        familyRate: 0,
-        totalStudents: acc.totalStudents + cs.totalStudents,
-        checkedInStudents: acc.checkedInStudents + cs.checkedInStudents,
-        studentRate: 0,
-      }),
-      {
-        totalFamilies: 0,
-        checkedInFamilies: 0,
-        familyRate: 0,
-        totalStudents: 0,
-        checkedInStudents: 0,
-        studentRate: 0,
+    // Overall stats — count unique families across all classes (not sum per-class)
+    const allUniqueFamilyIds = new Set<string>();
+    for (const student of students) {
+      if (student.family_id) {
+        allUniqueFamilyIds.add(student.family_id);
       }
-    );
-    overallStats.familyRate =
-      overallStats.totalFamilies > 0
-        ? overallStats.checkedInFamilies / overallStats.totalFamilies
-        : 0;
-    overallStats.studentRate =
-      overallStats.totalStudents > 0
-        ? overallStats.checkedInStudents / overallStats.totalStudents
-        : 0;
+    }
+
+    const allCheckedInFamilyIds = new Set<string>();
+    for (const fa of familyAttendance) {
+      allCheckedInFamilyIds.add(fa.family_id);
+    }
+
+    const totalStudentsOverall = classStats.reduce((sum, cs) => sum + cs.totalStudents, 0);
+    const checkedInStudentsOverall = classStats.reduce((sum, cs) => sum + cs.checkedInStudents, 0);
+
+    const overallStats: OverallStats = {
+      totalFamilies: allUniqueFamilyIds.size,
+      checkedInFamilies: allCheckedInFamilyIds.size,
+      familyRate: allUniqueFamilyIds.size > 0
+        ? allCheckedInFamilyIds.size / allUniqueFamilyIds.size
+        : 0,
+      totalStudents: totalStudentsOverall,
+      checkedInStudents: checkedInStudentsOverall,
+      studentRate: totalStudentsOverall > 0
+        ? checkedInStudentsOverall / totalStudentsOverall
+        : 0,
+    };
 
     return { classStats, yearLevelStats, overallStats };
   }, [familyAttendance, studentAttendance, students, classFilter]);
