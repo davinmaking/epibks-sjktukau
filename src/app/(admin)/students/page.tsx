@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState, useMemo, useCallback } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { DataTable, type ColumnDef } from "@/components/data-table";
 import { Button } from "@/components/ui/button";
@@ -40,9 +40,24 @@ const columns: ColumnDef<StudentRow>[] = [
 
 export default function StudentsPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [students, setStudents] = useState<StudentRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [classFilter, setClassFilter] = useState<string>("全部班级");
+
+  const initialClass = searchParams.get("class") ?? "全部班级";
+  const [classFilter, setClassFilter] = useState<string>(initialClass);
+
+  const handleClassChange = useCallback((val: string) => {
+    setClassFilter(val);
+    const params = new URLSearchParams(searchParams.toString());
+    if (val === "全部班级") {
+      params.delete("class");
+    } else {
+      params.set("class", val);
+    }
+    const qs = params.toString();
+    router.replace(`/students${qs ? `?${qs}` : ""}`, { scroll: false });
+  }, [router, searchParams]);
 
   useEffect(() => {
     const fetchStudents = async () => {
@@ -108,7 +123,7 @@ export default function StudentsPage() {
         filterSlot={
           <Select
             value={classFilter}
-            onValueChange={(val) => setClassFilter(val as string)}
+            onValueChange={(val) => handleClassChange(val as string)}
           >
             <SelectTrigger>
               <SelectValue placeholder="所有班级" />
