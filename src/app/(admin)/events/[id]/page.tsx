@@ -10,10 +10,17 @@ import { ClassProgressBar } from "@/components/class-progress-bar";
 import { CLASS_NAMES } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { ArrowLeft, CalendarDays, Loader2, Trash2 } from "lucide-react";
+import { ArrowLeft, CalendarDays, ChevronDown, ChevronRight, Loader2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import type { Tables } from "@/lib/types";
 import { formatDateWithWeekday } from "@/lib/utils";
+
+interface AttendeeEntry {
+  type: string;
+  name: string;
+  ic: string;
+  relationship: string;
+}
 
 type Event = Tables<"events">;
 
@@ -28,6 +35,7 @@ export default function EventDetailPage() {
   >([]);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
+  const [expandedClass, setExpandedClass] = useState<string | null>(null);
 
   // Realtime attendance data
   const {
@@ -167,10 +175,10 @@ export default function EventDetailPage() {
           <div className="grid gap-4 sm:grid-cols-2">
             {event.track_family && (
               <AttendanceStatsCard
-                title="家庭出席率"
-                value={`${overallStats.checkedInFamilies}/${overallStats.totalFamilies}`}
-                percentage={Math.round(overallStats.familyRate * 100)}
-                description="已签到家庭 / 总家庭数"
+                title="总出席率"
+                value={`${overallStats.classLevelCheckedInFamilies}/${overallStats.classLevelTotalFamilies}`}
+                percentage={Math.round(overallStats.classLevelFamilyRate * 100)}
+                description={`按班级累计 · 唯一家庭 ${overallStats.checkedInFamilies}/${overallStats.totalFamilies}`}
               />
             )}
             {event.track_student && (
@@ -191,34 +199,119 @@ export default function EventDetailPage() {
                 此活动包含 {event.included_classes.length}/{CLASS_NAMES.length} 个班级
               </p>
             )}
+            <p className="text-xs text-muted-foreground">点击班级查看出席详情</p>
             <div className="space-y-3">
               {(event.included_classes ?? CLASS_NAMES).map((cls) => {
                 const stat = classStats.find((s) => s.className === cls);
                 if (!stat) return null;
+                const isExpanded = expandedClass === cls;
 
-                if (event.track_family) {
-                  return (
-                    <ClassProgressBar
-                      key={cls}
-                      classLabel={cls}
-                      checkedIn={stat.checkedInFamilies}
-                      total={stat.totalFamilies}
-                    />
-                  );
-                }
+                // Get attendance records for this class
+                const classAttendanceRecords = familyAttendance.filter(
+                  (fa) => fa.class_name === cls
+                );
+                // Also find families in this class that were checked in by another class (sibling sync)
+                const classFamilyIds = new Set(
+                  includedStudents
+                    .filter((s) => s.class_name === cls && s.family_id)
+                    .map((s) => s.family_id!)
+                );
+                const siblingRecords = familyAttendance.filter(
+                  (fa) => fa.class_name !== cls && classFamilyIds.has(fa.family_id)
+                );
 
-                if (event.track_student) {
-                  return (
-                    <ClassProgressBar
-                      key={cls}
-                      classLabel={cls}
-                      checkedIn={stat.checkedInStudents}
-                      total={stat.totalStudents}
-                    />
-                  );
-                }
+                const checkedIn = event.track_family ? stat.checkedInFamilies : stat.checkedInStudents;
+                const total = event.track_family ? stat.totalFamilies : stat.totalStudents;
 
-                return null;
+                if (!event.track_family && !event.track_student) return null;
+
+                return (
+                  <div key={cls}>
+                    <button
+                      type="button"
+                      className="w-full text-left"
+                      onClick={() => setExpandedClass(isExpanded ? null : cls)}
+                    >
+                      <div className="flex items-center gap-2">
+                        {isExpanded ? (
+                          <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
+                        ) : (
+                          <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
+                        )}
+                        <div className="flex-1">
+                          <ClassProgressBar
+                            classLabel={cls}
+                            checkedIn={checkedIn}
+                            total={total}
+                          />
+                        </div>
+                      </div>
+                    </button>
+
+                    {isExpanded && event.track_family && (
+                      <div className="ml-6 mt-2 space-y-2">
+                        {classAttendanceRecords.length === 0 && siblingRecords.length === 0 ? (
+                          <p className="text-xs text-muted-foreground py-2">暂无签到记录</p>
+                        ) : (
+                          <div className="overflow-x-auto rounded-lg border">
+                            <table className="w-full text-xs">
+                              <thead>
+                                <tr className="border-b bg-muted/50">
+                                  <th className="px-3 py-2 text-left font-medium">出席者</th>
+                                  <th className="px-3 py-2 text-left font-medium">身份证</th>
+                                  <th className="px-3 py-2 text-left font-medium">关系</th>
+                                  <th className="px-3 py-2 text-left font-medium">来源</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {[...classAttendanceRecords, ...siblingRecords].map((record) => {
+                                  const attendees = (record.attendees as unknown as AttendeeEntry[]) ?? [];
+                                  const isSibling = record.class_name !== cls;
+
+                                  if (attendees.length > 0) {
+                                    return attendees.map((att, i) => (
+                                      <tr key={`${record.id}-${i}`} className="border-b">
+                                        <td className="px-3 py-2 font-medium">{att.name || "-"}</td>
+                                        <td className="px-3 py-2 font-mono">{att.ic || "-"}</td>
+                                        <td className="px-3 py-2">{att.relationship || att.type || "-"}</td>
+                                        <td className="px-3 py-2">
+                                          {isSibling ? (
+                                            <span className="text-blue-600 dark:text-blue-400">
+                                              {record.class_name}
+                                            </span>
+                                          ) : (
+                                            "本班"
+                                          )}
+                                        </td>
+                                      </tr>
+                                    ));
+                                  }
+
+                                  return (
+                                    <tr key={record.id} className="border-b">
+                                      <td className="px-3 py-2 font-medium">{record.attendee_name || "-"}</td>
+                                      <td className="px-3 py-2 font-mono">{record.attendee_ic || "-"}</td>
+                                      <td className="px-3 py-2">{record.attendee_relationship || record.attendee_type || "-"}</td>
+                                      <td className="px-3 py-2">
+                                        {isSibling ? (
+                                          <span className="text-blue-600 dark:text-blue-400">
+                                            {record.class_name}
+                                          </span>
+                                        ) : (
+                                          "本班"
+                                        )}
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
               })}
             </div>
           </div>

@@ -254,10 +254,10 @@ export default function DashboardPage() {
                   <div className="grid gap-4 sm:grid-cols-2">
                     {ongoingEvent.track_family && (
                       <AttendanceStatsCard
-                        title="家庭出席率"
-                        value={`${overallStats.checkedInFamilies}/${overallStats.totalFamilies}`}
-                        percentage={Math.round(overallStats.familyRate * 100)}
-                        description="已签到家庭 / 总家庭数"
+                        title="总出席率"
+                        value={`${overallStats.classLevelCheckedInFamilies}/${overallStats.classLevelTotalFamilies}`}
+                        percentage={Math.round(overallStats.classLevelFamilyRate * 100)}
+                        description="按班级累计（含兄弟姐妹重复计算）"
                       />
                     )}
                     {ongoingEvent.track_student && (

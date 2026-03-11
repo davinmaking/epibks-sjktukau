@@ -21,6 +21,13 @@ type Student = Tables<"students">;
 type FamilyAttendance = Tables<"family_attendance">;
 type StudentAttendance = Tables<"student_attendance">;
 
+interface AttendeeEntry {
+  type: string;
+  name: string;
+  ic: string;
+  relationship: string;
+}
+
 function rateString(checked: number, total: number): string {
   if (total === 0) return "0/0 (0%)";
   const pct = Math.round((checked / total) * 100);
@@ -306,7 +313,7 @@ export default function ReportsPage() {
     if (!selectedEvent || classStats.length === 0) return;
 
     const headers = ["班级"];
-    if (showFamily) headers.push("家庭已签到", "家庭总数", "家庭出席率");
+    if (showFamily) headers.push("家庭已签到", "家庭总数", "出席率");
     if (showStudent) headers.push("学生已签到", "学生总数", "学生出席率");
 
     const rows = classStats.map((row) => {
@@ -409,6 +416,7 @@ export default function ReportsPage() {
         <TabsList>
           <TabsTrigger value="class">按班级</TabsTrigger>
           <TabsTrigger value="year">按年级</TabsTrigger>
+          <TabsTrigger value="detail">出席详情</TabsTrigger>
           <TabsTrigger value="all">所有活动</TabsTrigger>
         </TabsList>
 
@@ -430,7 +438,7 @@ export default function ReportsPage() {
                   <tr className="border-b bg-muted/50">
                     <th scope="col" className="px-4 py-3 text-left font-medium">班级</th>
                     {showFamily && (
-                      <th scope="col" className="px-4 py-3 text-left font-medium">家庭出席率</th>
+                      <th scope="col" className="px-4 py-3 text-left font-medium">总出席率</th>
                     )}
                     {showStudent && (
                       <th scope="col" className="px-4 py-3 text-left font-medium">学生出席率</th>
@@ -519,7 +527,7 @@ export default function ReportsPage() {
                   <tr className="border-b bg-muted/50">
                     <th scope="col" className="px-4 py-3 text-left font-medium">年级</th>
                     {showFamily && (
-                      <th scope="col" className="px-4 py-3 text-left font-medium">家庭出席率</th>
+                      <th scope="col" className="px-4 py-3 text-left font-medium">总出席率</th>
                     )}
                     {showStudent && (
                       <th scope="col" className="px-4 py-3 text-left font-medium">学生出席率</th>
@@ -590,7 +598,108 @@ export default function ReportsPage() {
           )}
         </TabsContent>
 
-        {/* Tab 3: All Events Comparison */}
+        {/* Tab 3: Detailed Attendance per Class */}
+        <TabsContent value="detail">
+          {loadingData ? (
+            <div className="flex h-40 items-center justify-center" role="status" aria-label="加载数据">
+              <Loader2 className="size-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : !showFamily ? (
+            <div className="flex h-40 items-center justify-center text-muted-foreground">
+              <p>该活动未追踪家庭出席</p>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              <p className="text-sm text-muted-foreground">
+                各班出席家长/监护人详情（可用于制作出席证书）
+              </p>
+              {includedClassNames.map((className) => {
+                const classRecords = familyAttendance.filter(
+                  (fa) => fa.class_name === className
+                );
+                // Sibling sync: families in this class checked in by another class
+                const classFamilyIds = new Set(
+                  students
+                    .filter((s) => s.class_name === className && s.family_id)
+                    .map((s) => s.family_id!)
+                );
+                const siblingRecords = familyAttendance.filter(
+                  (fa) => fa.class_name !== className && classFamilyIds.has(fa.family_id)
+                );
+                const allRecords = [...classRecords, ...siblingRecords];
+
+                return (
+                  <div key={className}>
+                    <h3 className="mb-2 text-sm font-semibold">{className}</h3>
+                    {allRecords.length === 0 ? (
+                      <p className="text-xs text-muted-foreground pb-2">暂无签到记录</p>
+                    ) : (
+                      <div className="overflow-x-auto rounded-lg border">
+                        <table className="w-full text-xs">
+                          <thead>
+                            <tr className="border-b bg-muted/50">
+                              <th className="px-3 py-2 text-left font-medium">#</th>
+                              <th className="px-3 py-2 text-left font-medium">出席者姓名</th>
+                              <th className="px-3 py-2 text-left font-medium">身份证号码</th>
+                              <th className="px-3 py-2 text-left font-medium">关系</th>
+                              <th className="px-3 py-2 text-left font-medium">签到来源</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {(() => {
+                              let rowNum = 0;
+                              return allRecords.flatMap((record) => {
+                                const attendees = (record.attendees as unknown as AttendeeEntry[]) ?? [];
+                                const isSibling = record.class_name !== className;
+                                const source = isSibling ? record.class_name : "本班";
+
+                                if (attendees.length > 0) {
+                                  return attendees.map((att, i) => {
+                                    rowNum++;
+                                    return (
+                                      <tr key={`${record.id}-${i}`} className="border-b">
+                                        <td className="px-3 py-2 text-muted-foreground">{rowNum}</td>
+                                        <td className="px-3 py-2 font-medium">{att.name || "-"}</td>
+                                        <td className="px-3 py-2 font-mono">{att.ic || "-"}</td>
+                                        <td className="px-3 py-2">{att.relationship || att.type || "-"}</td>
+                                        <td className="px-3 py-2">
+                                          {isSibling ? (
+                                            <span className="text-blue-600 dark:text-blue-400">{source}</span>
+                                          ) : source}
+                                        </td>
+                                      </tr>
+                                    );
+                                  });
+                                }
+
+                                rowNum++;
+                                return [(
+                                  <tr key={record.id} className="border-b">
+                                    <td className="px-3 py-2 text-muted-foreground">{rowNum}</td>
+                                    <td className="px-3 py-2 font-medium">{record.attendee_name || "-"}</td>
+                                    <td className="px-3 py-2 font-mono">{record.attendee_ic || "-"}</td>
+                                    <td className="px-3 py-2">{record.attendee_relationship || record.attendee_type || "-"}</td>
+                                    <td className="px-3 py-2">
+                                      {isSibling ? (
+                                        <span className="text-blue-600 dark:text-blue-400">{source}</span>
+                                      ) : source}
+                                    </td>
+                                  </tr>
+                                )];
+                              });
+                            })()}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </TabsContent>
+
+        {/* Tab 4: All Events Comparison */}
         <TabsContent value="all">
           {loadingAllEvents ? (
             <div className="flex h-40 items-center justify-center" role="status" aria-label="加载数据">
@@ -608,7 +717,7 @@ export default function ReportsPage() {
                   <tr className="border-b bg-muted/50">
                     <th scope="col" className="px-4 py-3 text-left font-medium">日期</th>
                     <th scope="col" className="px-4 py-3 text-left font-medium">活动名称</th>
-                    <th scope="col" className="px-4 py-3 text-left font-medium">家庭出席率</th>
+                    <th scope="col" className="px-4 py-3 text-left font-medium">总出席率</th>
                     <th scope="col" className="px-4 py-3 text-left font-medium">学生出席率</th>
                   </tr>
                 </thead>

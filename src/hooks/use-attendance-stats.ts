@@ -27,9 +27,14 @@ export interface YearLevelStat {
 }
 
 export interface OverallStats {
+  /** Unique family count (deduped across classes) */
   totalFamilies: number;
   checkedInFamilies: number;
   familyRate: number;
+  /** Class-level sum (siblings counted per class — school's official method) */
+  classLevelTotalFamilies: number;
+  classLevelCheckedInFamilies: number;
+  classLevelFamilyRate: number;
   totalStudents: number;
   checkedInStudents: number;
   studentRate: number;
@@ -189,13 +194,18 @@ export function useAttendanceStats(params: UseAttendanceStatsParams): {
       });
     }
 
-    // Overall stats — count unique families across all classes (not sum per-class)
+    // Overall stats
+    // 1. Unique families (deduped)
     const allUniqueFamilyIds = new Set<string>();
     for (const student of students) {
       if (student.family_id) {
         allUniqueFamilyIds.add(student.family_id);
       }
     }
+
+    // 2. Class-level sum (siblings counted per class — school's official method)
+    const classLevelTotalFamilies = classStats.reduce((sum, cs) => sum + cs.totalFamilies, 0);
+    const classLevelCheckedInFamilies = classStats.reduce((sum, cs) => sum + cs.checkedInFamilies, 0);
 
     const totalStudentsOverall = classStats.reduce((sum, cs) => sum + cs.totalStudents, 0);
     const checkedInStudentsOverall = classStats.reduce((sum, cs) => sum + cs.checkedInStudents, 0);
@@ -205,6 +215,11 @@ export function useAttendanceStats(params: UseAttendanceStatsParams): {
       checkedInFamilies: allCheckedInFamilyIds.size,
       familyRate: allUniqueFamilyIds.size > 0
         ? allCheckedInFamilyIds.size / allUniqueFamilyIds.size
+        : 0,
+      classLevelTotalFamilies,
+      classLevelCheckedInFamilies,
+      classLevelFamilyRate: classLevelTotalFamilies > 0
+        ? classLevelCheckedInFamilies / classLevelTotalFamilies
         : 0,
       totalStudents: totalStudentsOverall,
       checkedInStudents: checkedInStudentsOverall,
