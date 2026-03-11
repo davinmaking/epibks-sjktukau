@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { Pie, PieChart } from "recharts";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeAttendance } from "@/hooks/use-realtime-attendance";
 import { useAttendanceStats } from "@/hooks/use-attendance-stats";
@@ -9,6 +10,18 @@ import { AttendanceStatsCard } from "@/components/attendance-stats-card";
 import { ClassProgressBar } from "@/components/class-progress-bar";
 import { CLASS_NAMES } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  type ChartConfig,
+} from "@/components/ui/chart";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -21,6 +34,20 @@ import {
 import { toast } from "sonner";
 import type { Tables } from "@/lib/types";
 import { formatDateWithWeekday, getStatusColors } from "@/lib/utils";
+
+// Distinct colors per class for pie chart
+const CLASS_COLORS: Record<string, string> = {
+  PRASEKOLAH: "oklch(0.70 0.18 145)",
+  JOYFUL: "oklch(0.75 0.15 65)",
+  SUNSHINE: "oklch(0.80 0.16 90)",
+  "T1 TEKUN": "oklch(0.65 0.20 250)",
+  "T2 KREATIF": "oklch(0.60 0.18 285)",
+  "T3 BERDIKARI": "oklch(0.68 0.14 195)",
+  "T4 BERJUANG": "oklch(0.70 0.16 55)",
+  "T5 SABAR": "oklch(0.60 0.20 330)",
+  "T6 BERJAYA": "oklch(0.55 0.15 170)",
+};
+const NOT_CHECKED_IN_COLOR = "oklch(0.65 0.22 25)";
 
 interface AttendeeEntry {
   type: string;
@@ -120,6 +147,54 @@ export default function EventDetailPage() {
     () => (event?.included_classes ?? CLASS_NAMES) as string[],
     [event]
   );
+
+  // Pie chart data: one slice per class + "未签到"
+  const familyPieData = useMemo(() => {
+    if (!event?.track_family || classStats.length === 0) return null;
+    const slices: { className: string; count: number; fill: string }[] = [];
+    for (const stat of classStats) {
+      if (stat.checkedInFamilies > 0) {
+        slices.push({
+          className: stat.className,
+          count: stat.checkedInFamilies,
+          fill: CLASS_COLORS[stat.className] ?? "var(--chart-1)",
+        });
+      }
+    }
+    const notCheckedIn = overallStats.classLevelTotalFamilies - overallStats.classLevelCheckedInFamilies;
+    if (notCheckedIn > 0) {
+      slices.push({ className: "notCheckedIn", count: notCheckedIn, fill: NOT_CHECKED_IN_COLOR });
+    }
+    return slices;
+  }, [event?.track_family, classStats, overallStats.classLevelCheckedInFamilies, overallStats.classLevelTotalFamilies]);
+
+  const studentPieData = useMemo(() => {
+    if (!event?.track_student || classStats.length === 0) return null;
+    const slices: { className: string; count: number; fill: string }[] = [];
+    for (const stat of classStats) {
+      if (stat.checkedInStudents > 0) {
+        slices.push({
+          className: stat.className,
+          count: stat.checkedInStudents,
+          fill: CLASS_COLORS[stat.className] ?? "var(--chart-1)",
+        });
+      }
+    }
+    const notCheckedIn = overallStats.totalStudents - overallStats.checkedInStudents;
+    if (notCheckedIn > 0) {
+      slices.push({ className: "notCheckedIn", count: notCheckedIn, fill: NOT_CHECKED_IN_COLOR });
+    }
+    return slices;
+  }, [event?.track_student, classStats, overallStats.checkedInStudents, overallStats.totalStudents]);
+
+  const pieChartConfig = useMemo(() => {
+    const config: ChartConfig = { count: { label: "人数" } };
+    for (const cls of CLASS_NAMES) {
+      config[cls] = { label: cls, color: CLASS_COLORS[cls] ?? "var(--chart-1)" };
+    }
+    config.notCheckedIn = { label: "未签到", color: NOT_CHECKED_IN_COLOR };
+    return config;
+  }, []);
 
   // Class-level stats for report table (same logic as old reports page)
   const classReportStats = useMemo(() => {
@@ -453,6 +528,62 @@ export default function EventDetailPage() {
               )}
             </div>
 
+            {/* Pie charts */}
+            <div className="grid gap-4 sm:grid-cols-2">
+              {showFamily && familyPieData && (
+                <Card>
+                  <CardHeader className="items-center pb-0">
+                    <CardTitle className="text-sm">总出席率</CardTitle>
+                  </CardHeader>
+                  <CardContent className="flex-1 pb-0">
+                    <ChartContainer
+                      config={pieChartConfig}
+                      className="mx-auto aspect-square max-h-[280px] [&_.recharts-pie-label-text]:fill-foreground"
+                    >
+                      <PieChart>
+                        <ChartTooltip content={<ChartTooltipContent hideLabel />} />
+                        <Pie data={familyPieData} dataKey="count" label={{ fontSize: 12 }} nameKey="className" outerRadius="70%" />
+                      </PieChart>
+                    </ChartContainer>
+                  </CardContent>
+                  <div className="p-4 pt-2 text-center">
+                    <p className="text-2xl font-bold">
+                      {Math.round(overallStats.classLevelFamilyRate * 100)}%
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {overallStats.classLevelCheckedInFamilies}/{overallStats.classLevelTotalFamilies} 按班级累计
+                    </p>
+                  </div>
+                </Card>
+              )}
+              {showStudent && studentPieData && (
+                <Card>
+                  <CardHeader className="items-center pb-0">
+                    <CardTitle className="text-sm">学生出席率</CardTitle>
+                  </CardHeader>
+                  <CardContent className="flex-1 pb-0">
+                    <ChartContainer
+                      config={pieChartConfig}
+                      className="mx-auto aspect-square max-h-[280px] [&_.recharts-pie-label-text]:fill-foreground"
+                    >
+                      <PieChart>
+                        <ChartTooltip content={<ChartTooltipContent hideLabel />} />
+                        <Pie data={studentPieData} dataKey="count" label={{ fontSize: 12 }} nameKey="className" outerRadius="70%" />
+                      </PieChart>
+                    </ChartContainer>
+                  </CardContent>
+                  <div className="p-4 pt-2 text-center">
+                    <p className="text-2xl font-bold">
+                      {Math.round(overallStats.studentRate * 100)}%
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {overallStats.checkedInStudents}/{overallStats.totalStudents} 已签到学生
+                    </p>
+                  </div>
+                </Card>
+              )}
+            </div>
+
             {/* Per-class progress bars */}
             <div className="space-y-3">
               <h2 className="text-lg font-semibold">各班出席情况</h2>
@@ -475,6 +606,7 @@ export default function EventDetailPage() {
                     classLabel={cls}
                     checkedIn={checkedIn}
                     total={total}
+                    colorDot={CLASS_COLORS[cls]}
                   />
                 );
               })}
