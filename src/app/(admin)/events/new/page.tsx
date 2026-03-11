@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
+import { CLASS_NAMES } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,6 +22,9 @@ export default function NewEventPage() {
   const [description, setDescription] = useState("");
   const [trackFamily, setTrackFamily] = useState(true);
   const [trackStudent, setTrackStudent] = useState(false);
+  const [includedClasses, setIncludedClasses] = useState<Set<string>>(
+    new Set(CLASS_NAMES)
+  );
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -44,6 +48,9 @@ export default function NewEventPage() {
     if (!trackFamily && !trackStudent) {
       newErrors.tracking = "至少选择一种追踪模式";
     }
+    if (includedClasses.size === 0) {
+      newErrors.classes = "至少选择一个班级";
+    }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   }
@@ -56,12 +63,19 @@ export default function NewEventPage() {
     setSubmitting(true);
     const supabase = createClient();
 
+    // null means all classes included
+    const classesValue =
+      includedClasses.size === CLASS_NAMES.length
+        ? null
+        : [...includedClasses];
+
     const { error } = await supabase.from("events").insert({
       name: name.trim(),
       date,
       description: description.trim() || null,
       track_family: trackFamily,
       track_student: trackStudent,
+      included_classes: classesValue,
       created_by: teacher.id,
     });
 
@@ -159,6 +173,65 @@ export default function NewEventPage() {
               </div>
               {errors.tracking && (
                 <p className="text-sm text-destructive">{errors.tracking}</p>
+              )}
+            </div>
+
+            {/* Included classes */}
+            <div className="space-y-3">
+              <Label>参与班级 *</Label>
+              <p className="text-xs text-muted-foreground">
+                选择需要计入此活动出席率的班级
+              </p>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIncludedClasses(new Set(CLASS_NAMES))}
+                  disabled={includedClasses.size === CLASS_NAMES.length}
+                >
+                  全选
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIncludedClasses(new Set())}
+                  disabled={includedClasses.size === 0}
+                >
+                  取消全选
+                </Button>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                {CLASS_NAMES.map((cls) => (
+                  <label
+                    key={cls}
+                    className={`flex min-h-[40px] cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors ${
+                      includedClasses.has(cls)
+                        ? "border-primary/30 bg-primary/5"
+                        : "hover:bg-muted/50"
+                    }`}
+                  >
+                    <Checkbox
+                      checked={includedClasses.has(cls)}
+                      onCheckedChange={(checked) => {
+                        setIncludedClasses((prev) => {
+                          const next = new Set(prev);
+                          if (checked) {
+                            next.add(cls);
+                          } else {
+                            next.delete(cls);
+                          }
+                          return next;
+                        });
+                      }}
+                    />
+                    {cls}
+                  </label>
+                ))}
+              </div>
+              {errors.classes && (
+                <p className="text-sm text-destructive">{errors.classes}</p>
               )}
             </div>
 

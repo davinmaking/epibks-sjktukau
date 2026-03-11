@@ -66,7 +66,12 @@ export default function TeacherDashboardPage() {
         countByEvent.set(record.event_id, (countByEvent.get(record.event_id) ?? 0) + 1);
       }
 
-      const eventsWithStats: EventWithStats[] = eventsData.map((event) => ({
+      // Filter events that include this teacher's class
+      const relevantEvents = eventsData.filter((event) =>
+        !event.included_classes || event.included_classes.includes(teacher!.class_name!)
+      );
+
+      const eventsWithStats: EventWithStats[] = relevantEvents.map((event) => ({
         ...event,
         familyCheckedIn: countByEvent.get(event.id) ?? 0,
         totalFamilies,

@@ -21,6 +21,7 @@ export type Database = {
           date: string
           description: string | null
           id: string
+          included_classes: string[] | null
           name: string
           track_family: boolean
           track_student: boolean
@@ -32,6 +33,7 @@ export type Database = {
           date: string
           description?: string | null
           id?: string
+          included_classes?: string[] | null
           name: string
           track_family?: boolean
           track_student?: boolean
@@ -43,6 +45,7 @@ export type Database = {
           date?: string
           description?: string | null
           id?: string
+          included_classes?: string[] | null
           name?: string
           track_family?: boolean
           track_student?: boolean

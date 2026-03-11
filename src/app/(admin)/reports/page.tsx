@@ -156,10 +156,6 @@ export default function ReportsPage() {
     ]);
 
     const studentList = studentsRes.data ?? [];
-    const totalStudents = studentList.length;
-    const totalFamilies = new Set(
-      studentList.filter((s) => s.family_id).map((s) => s.family_id)
-    ).size;
 
     // Group attendance by event_id
     const familyByEvent = new Map<string, Set<string>>();
@@ -178,23 +174,40 @@ export default function ReportsPage() {
       studentByEvent.get(sa.event_id)!.add(sa.student_id);
     }
 
-    const summaries = recentEvents.map((event) => ({
-      event,
-      familyChecked: familyByEvent.get(event.id)?.size ?? 0,
-      familyTotal: totalFamilies,
-      studentChecked: studentByEvent.get(event.id)?.size ?? 0,
-      studentTotal: totalStudents,
-    }));
+    const summaries = recentEvents.map((event) => {
+      // Filter students by event's included_classes
+      const eventStudents = event.included_classes
+        ? studentList.filter((s) => event.included_classes!.includes(s.class_name))
+        : studentList;
+      const totalStudents = eventStudents.length;
+      const totalFamilies = new Set(
+        eventStudents.filter((s) => s.family_id).map((s) => s.family_id)
+      ).size;
+
+      return {
+        event,
+        familyChecked: familyByEvent.get(event.id)?.size ?? 0,
+        familyTotal: totalFamilies,
+        studentChecked: studentByEvent.get(event.id)?.size ?? 0,
+        studentTotal: totalStudents,
+      };
+    });
 
     setAllEventsData(summaries);
     setLoadingAllEvents(false);
   }, [events]);
 
+  // Classes included in the selected event (null = all)
+  const includedClassNames = useMemo(() => {
+    if (!selectedEvent) return CLASS_NAMES;
+    return selectedEvent.included_classes ?? CLASS_NAMES;
+  }, [selectedEvent]);
+
   // Class-level stats (memoized)
   const classStats = useMemo(() => {
     if (!selectedEvent) return [];
 
-    return CLASS_NAMES.map((className) => {
+    return includedClassNames.map((className) => {
       const classStudents = students.filter((s) => s.class_name === className);
       const totalStudents = classStudents.length;
       const totalFamilies = new Set(
@@ -218,7 +231,7 @@ export default function ReportsPage() {
         checkedStudents,
       };
     });
-  }, [selectedEvent, students, familyAttendance, studentAttendance]);
+  }, [selectedEvent, includedClassNames, students, familyAttendance, studentAttendance]);
 
   // Overall totals
   const overallTotals = useMemo(() => {
@@ -237,11 +250,17 @@ export default function ReportsPage() {
   const yearStats = useMemo(() => {
     if (!selectedEvent) return [];
 
-    const yearLevels = [...new Set(Object.values(CLASS_YEAR_MAP))];
+    // Only year levels that have included classes
+    const includedSet = new Set(includedClassNames);
+    const yearLevels = [...new Set(
+      Object.entries(CLASS_YEAR_MAP)
+        .filter(([cn]) => includedSet.has(cn))
+        .map(([, yl]) => yl)
+    )];
 
     return yearLevels.map((yearLevel) => {
       const classesInYear = Object.entries(CLASS_YEAR_MAP)
-        .filter(([, yl]) => yl === yearLevel)
+        .filter(([cn, yl]) => yl === yearLevel && includedSet.has(cn))
         .map(([cn]) => cn);
 
       const yearStudents = students.filter((s) => classesInYear.includes(s.class_name));
@@ -267,7 +286,7 @@ export default function ReportsPage() {
         checkedStudents,
       };
     });
-  }, [selectedEvent, students, familyAttendance, studentAttendance]);
+  }, [selectedEvent, includedClassNames, students, familyAttendance, studentAttendance]);
 
   // CSV export for class-level report
   function handleExportCSV() {

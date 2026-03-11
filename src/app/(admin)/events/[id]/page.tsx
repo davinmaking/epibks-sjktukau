@@ -36,11 +36,16 @@ export default function EventDetailPage() {
     isLoading: attendanceLoading,
   } = useRealtimeAttendance(eventId);
 
+  // Filter students by included classes (null = all classes)
+  const includedStudents = event?.included_classes
+    ? students.filter((s) => event.included_classes!.includes(s.class_name))
+    : students;
+
   // Attendance stats
   const { classStats, overallStats } = useAttendanceStats({
     familyAttendance,
     studentAttendance,
-    students,
+    students: includedStudents,
   });
 
   useEffect(() => {
@@ -181,8 +186,13 @@ export default function EventDetailPage() {
           {/* Per-class breakdown */}
           <div className="space-y-4">
             <h2 className="text-lg font-semibold">各班出席情况</h2>
+            {event.included_classes && (
+              <p className="text-xs text-muted-foreground">
+                此活动包含 {event.included_classes.length}/{CLASS_NAMES.length} 个班级
+              </p>
+            )}
             <div className="space-y-3">
-              {CLASS_NAMES.map((cls) => {
+              {(event.included_classes ?? CLASS_NAMES).map((cls) => {
                 const stat = classStats.find((s) => s.className === cls);
                 if (!stat) return null;
 

@@ -66,11 +66,16 @@ export default function DashboardPage() {
     isLoading: attendanceLoading,
   } = useRealtimeAttendance(ongoingEvent?.id ?? null);
 
+  // Filter students by included classes for ongoing event
+  const includedStudents = ongoingEvent?.included_classes
+    ? students.filter((s) => ongoingEvent.included_classes!.includes(s.class_name))
+    : students;
+
   // Attendance stats for ongoing event
   const { classStats, overallStats } = useAttendanceStats({
     familyAttendance,
     studentAttendance,
-    students,
+    students: includedStudents,
   });
 
   useEffect(() => {
@@ -271,7 +276,7 @@ export default function DashboardPage() {
                       各班出席情况
                     </h3>
                     <div className="space-y-2">
-                      {CLASS_NAMES.map((cls) => {
+                      {(ongoingEvent?.included_classes ?? CLASS_NAMES).map((cls) => {
                         const stat = classStats.find(
                           (s) => s.className === cls
                         );
