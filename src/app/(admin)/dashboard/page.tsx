@@ -315,11 +315,11 @@ export default function DashboardPage() {
                         <CardContent className="flex-1 pb-0">
                           <ChartContainer
                             config={pieChartConfig}
-                            className="mx-auto aspect-square max-h-[200px] pb-0 [&_.recharts-pie-label-text]:fill-foreground"
+                            className="mx-auto aspect-square max-h-[280px] [&_.recharts-pie-label-text]:fill-foreground"
                           >
                             <PieChart>
                               <ChartTooltip content={<ChartTooltipContent hideLabel />} />
-                              <Pie data={familyPieData} dataKey="count" label nameKey="className" />
+                              <Pie data={familyPieData} dataKey="count" label={{ fontSize: 12 }} nameKey="className" outerRadius="70%" />
                             </PieChart>
                           </ChartContainer>
                         </CardContent>
@@ -341,11 +341,11 @@ export default function DashboardPage() {
                         <CardContent className="flex-1 pb-0">
                           <ChartContainer
                             config={pieChartConfig}
-                            className="mx-auto aspect-square max-h-[200px] pb-0 [&_.recharts-pie-label-text]:fill-foreground"
+                            className="mx-auto aspect-square max-h-[280px] [&_.recharts-pie-label-text]:fill-foreground"
                           >
                             <PieChart>
                               <ChartTooltip content={<ChartTooltipContent hideLabel />} />
-                              <Pie data={studentPieData} dataKey="count" label nameKey="className" />
+                              <Pie data={studentPieData} dataKey="count" label={{ fontSize: 12 }} nameKey="className" outerRadius="70%" />
                             </PieChart>
                           </ChartContainer>
                         </CardContent>
