@@ -89,11 +89,7 @@ export function FamilyCheckInDialog({
       return;
     }
 
-    // Pre-select guardians if family not yet checked in
-    if (trackFamily && !familyAlreadyCheckedIn) {
-      setGuardian1Selected(!!family.guardian1_name);
-      setGuardian2Selected(!!family.guardian2_name);
-    }
+    // Do not pre-select guardians — let teacher choose explicitly
 
     // Pre-select already checked-in students
     if (trackStudent && checkedInStudentIds) {
