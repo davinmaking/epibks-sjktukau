@@ -59,15 +59,16 @@ export default function TeacherAttendancePage() {
       );
       const totalFamilies = uniqueFamilyIds.size;
 
-      // Batch fetch all attendance for this class in a single query
+      // Batch fetch attendance for families in this class (by family_id, not class_name)
+      // This ensures families checked in by other classes' teachers are also counted
       const eventIds = eventsData.map((e) => e.id);
       const { data: attendanceData } = await supabase
         .from("family_attendance")
-        .select("event_id")
+        .select("event_id, family_id")
         .in("event_id", eventIds)
-        .eq("class_name", teacher!.class_name!);
+        .in("family_id", [...uniqueFamilyIds]);
 
-      // Count per event client-side
+      // Count unique families per event
       const countByEvent = new Map<string, number>();
       for (const record of attendanceData ?? []) {
         countByEvent.set(record.event_id, (countByEvent.get(record.event_id) ?? 0) + 1);

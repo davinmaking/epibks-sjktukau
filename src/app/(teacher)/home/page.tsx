@@ -52,13 +52,14 @@ export default function TeacherDashboardPage() {
       );
       const totalFamilies = uniqueFamilyIds.size;
 
-      // Batch fetch attendance for all events in this class
+      // Batch fetch attendance for families in this class (by family_id, not class_name)
+      // This ensures families checked in by other classes' teachers are also counted
       const eventIds = eventsData.map((e) => e.id);
       const { data: attendanceData } = await supabase
         .from("family_attendance")
         .select("event_id")
         .in("event_id", eventIds)
-        .eq("class_name", teacher!.class_name!);
+        .in("family_id", [...uniqueFamilyIds]);
 
       // Count per event
       const countByEvent = new Map<string, number>();

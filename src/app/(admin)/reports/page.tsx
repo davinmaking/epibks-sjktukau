@@ -203,6 +203,12 @@ export default function ReportsPage() {
     return selectedEvent.included_classes ?? CLASS_NAMES;
   }, [selectedEvent]);
 
+  // Set of all checked-in family_ids for the selected event
+  const allCheckedInFamilyIds = useMemo(
+    () => new Set(familyAttendance.map((fa) => fa.family_id)),
+    [familyAttendance]
+  );
+
   // Class-level stats (memoized)
   const classStats = useMemo(() => {
     if (!selectedEvent) return [];
@@ -210,13 +216,17 @@ export default function ReportsPage() {
     return includedClassNames.map((className) => {
       const classStudents = students.filter((s) => s.class_name === className);
       const totalStudents = classStudents.length;
-      const totalFamilies = new Set(
-        classStudents.filter((s) => s.family_id).map((s) => s.family_id)
-      ).size;
+      const classFamilyIds = new Set(
+        classStudents.map((s) => s.family_id).filter((id): id is string => id !== null)
+      );
+      const totalFamilies = classFamilyIds.size;
 
-      const checkedFamilies = familyAttendance.filter(
-        (fa) => fa.class_name === className
-      ).length;
+      // Count families checked in: match by family_id, not class_name
+      // This ensures sibling families checked in by another class are counted
+      let checkedFamilies = 0;
+      for (const fid of classFamilyIds) {
+        if (allCheckedInFamilyIds.has(fid)) checkedFamilies++;
+      }
 
       const classStudentIds = new Set(classStudents.map((s) => s.id));
       const checkedStudents = studentAttendance.filter((sa) =>
@@ -231,7 +241,7 @@ export default function ReportsPage() {
         checkedStudents,
       };
     });
-  }, [selectedEvent, includedClassNames, students, familyAttendance, studentAttendance]);
+  }, [selectedEvent, includedClassNames, students, allCheckedInFamilyIds, studentAttendance]);
 
   // Overall totals
   const overallTotals = useMemo(() => {
@@ -265,13 +275,16 @@ export default function ReportsPage() {
 
       const yearStudents = students.filter((s) => classesInYear.includes(s.class_name));
       const totalStudents = yearStudents.length;
-      const totalFamilies = new Set(
-        yearStudents.filter((s) => s.family_id).map((s) => s.family_id)
-      ).size;
+      const yearFamilyIds = new Set(
+        yearStudents.map((s) => s.family_id).filter((id): id is string => id !== null)
+      );
+      const totalFamilies = yearFamilyIds.size;
 
-      const checkedFamilies = familyAttendance.filter((fa) =>
-        classesInYear.includes(fa.class_name)
-      ).length;
+      // Count by family_id match, not class_name (sibling sync)
+      let checkedFamilies = 0;
+      for (const fid of yearFamilyIds) {
+        if (allCheckedInFamilyIds.has(fid)) checkedFamilies++;
+      }
 
       const yearStudentIds = new Set(yearStudents.map((s) => s.id));
       const checkedStudents = studentAttendance.filter((sa) =>
@@ -286,7 +299,7 @@ export default function ReportsPage() {
         checkedStudents,
       };
     });
-  }, [selectedEvent, includedClassNames, students, familyAttendance, studentAttendance]);
+  }, [selectedEvent, includedClassNames, students, allCheckedInFamilyIds, familyAttendance, studentAttendance]);
 
   // CSV export for class-level report
   function handleExportCSV() {

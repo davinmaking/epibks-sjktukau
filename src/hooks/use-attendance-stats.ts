@@ -78,14 +78,23 @@ export function useAttendanceStats(params: UseAttendanceStatsParams): {
       }
     }
 
-    // Count checked-in families per class from familyAttendance
-    const checkedInFamiliesPerClass = new Map<string, Set<string>>();
+    // Build set of ALL checked-in family_ids (regardless of which class checked them in)
+    const allCheckedInFamilyIds = new Set<string>();
     for (const fa of familyAttendance) {
-      const cls = fa.class_name;
-      if (!checkedInFamiliesPerClass.has(cls)) {
-        checkedInFamiliesPerClass.set(cls, new Set());
+      allCheckedInFamilyIds.add(fa.family_id);
+    }
+
+    // Count checked-in families per class: a family counts as checked-in
+    // for ALL classes where they have children (sibling sync)
+    const checkedInFamiliesPerClass = new Map<string, Set<string>>();
+    for (const [cls, familyIds] of classFamilyIds) {
+      const checkedIn = new Set<string>();
+      for (const fid of familyIds) {
+        if (allCheckedInFamilyIds.has(fid)) {
+          checkedIn.add(fid);
+        }
       }
-      checkedInFamiliesPerClass.get(cls)!.add(fa.family_id);
+      checkedInFamiliesPerClass.set(cls, checkedIn);
     }
 
     // Count checked-in students per class from studentAttendance
@@ -186,11 +195,6 @@ export function useAttendanceStats(params: UseAttendanceStatsParams): {
       if (student.family_id) {
         allUniqueFamilyIds.add(student.family_id);
       }
-    }
-
-    const allCheckedInFamilyIds = new Set<string>();
-    for (const fa of familyAttendance) {
-      allCheckedInFamilyIds.add(fa.family_id);
     }
 
     const totalStudentsOverall = classStats.reduce((sum, cs) => sum + cs.totalStudents, 0);
