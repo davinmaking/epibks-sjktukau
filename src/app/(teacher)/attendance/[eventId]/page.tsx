@@ -367,19 +367,15 @@ export default function TeacherCheckInPage() {
             return (
               <div
                 key={family.id}
-                className={`flex min-h-[60px] items-center justify-between gap-3 rounded-lg border p-3 transition-all duration-200 ${
+                className={`flex min-h-[60px] cursor-pointer items-center justify-between gap-3 rounded-lg border p-3 transition-all duration-200 active:scale-[0.98] ${
                   allDone
-                    ? "border-green-200 bg-green-50/50 opacity-75 dark:border-green-900 dark:bg-green-950/20"
-                    : "cursor-pointer border-primary/20 bg-background hover:border-primary/40 hover:shadow-sm active:scale-[0.98] active:bg-muted/50"
+                    ? "border-green-200 bg-green-50/50 dark:border-green-900 dark:bg-green-950/20"
+                    : "border-primary/20 bg-background hover:border-primary/40 hover:shadow-sm active:bg-muted/50"
                 }`}
-                onClick={
-                  !allDone
-                    ? () => {
-                        setSelectedFamily(group);
-                        setDialogOpen(true);
-                      }
-                    : undefined
-                }
+                onClick={() => {
+                  setSelectedFamily(group);
+                  setDialogOpen(true);
+                }}
               >
                 <div className="min-w-0 flex-1">
                   {/* Children's names — primary display */}
