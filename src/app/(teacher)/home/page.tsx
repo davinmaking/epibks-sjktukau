@@ -11,9 +11,14 @@ import type { Tables } from "@/lib/types";
 
 type Event = Tables<"events">;
 
+interface EventWithStats extends Event {
+  familyCheckedIn: number;
+  totalFamilies: number;
+}
+
 export default function TeacherDashboardPage() {
   const { teacher } = useAuth();
-  const [events, setEvents] = useState<Event[]>([]);
+  const [events, setEvents] = useState<EventWithStats[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -25,13 +30,49 @@ export default function TeacherDashboardPage() {
     async function fetchData() {
       const supabase = createClient();
 
-      const { data: eventsData } = await supabase
-        .from("events")
-        .select("*")
-        .order("date", { ascending: false })
-        .limit(10);
+      // Fetch events and class data in parallel
+      const [eventsRes, studentsRes] = await Promise.all([
+        supabase
+          .from("events")
+          .select("*")
+          .order("date", { ascending: false })
+          .limit(10),
+        supabase
+          .from("students")
+          .select("family_id")
+          .eq("class_name", teacher!.class_name!),
+      ]);
 
-      setEvents(eventsData ?? []);
+      const eventsData = eventsRes.data ?? [];
+      const studentsList = studentsRes.data ?? [];
+
+      // Count unique families in this class
+      const uniqueFamilyIds = new Set(
+        studentsList.map((s) => s.family_id).filter((id): id is string => id !== null)
+      );
+      const totalFamilies = uniqueFamilyIds.size;
+
+      // Batch fetch attendance for all events in this class
+      const eventIds = eventsData.map((e) => e.id);
+      const { data: attendanceData } = await supabase
+        .from("family_attendance")
+        .select("event_id")
+        .in("event_id", eventIds)
+        .eq("class_name", teacher!.class_name!);
+
+      // Count per event
+      const countByEvent = new Map<string, number>();
+      for (const record of attendanceData ?? []) {
+        countByEvent.set(record.event_id, (countByEvent.get(record.event_id) ?? 0) + 1);
+      }
+
+      const eventsWithStats: EventWithStats[] = eventsData.map((event) => ({
+        ...event,
+        familyCheckedIn: countByEvent.get(event.id) ?? 0,
+        totalFamilies,
+      }));
+
+      setEvents(eventsWithStats);
       setLoading(false);
     }
 
@@ -89,6 +130,11 @@ export default function TeacherDashboardPage() {
               const isPast =
                 evt.date < new Date().toISOString().slice(0, 10);
 
+              const rate =
+                evt.totalFamilies > 0
+                  ? Math.round((evt.familyCheckedIn / evt.totalFamilies) * 100)
+                  : 0;
+
               return (
                 <Link
                   key={evt.id}
@@ -112,6 +158,22 @@ export default function TeacherDashboardPage() {
                     <p className="text-xs text-muted-foreground">
                       {formatDate(evt.date)}
                     </p>
+                    {evt.track_family && evt.totalFamilies > 0 && (
+                      <div className="mt-2 space-y-1">
+                        <div className="flex items-center justify-between text-xs text-muted-foreground">
+                          <span>家庭出席</span>
+                          <span className="font-medium text-foreground">
+                            {evt.familyCheckedIn}/{evt.totalFamilies} ({rate}%)
+                          </span>
+                        </div>
+                        <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                          <div
+                            className="h-full rounded-full bg-primary transition-all"
+                            style={{ width: `${rate}%` }}
+                          />
+                        </div>
+                      </div>
+                    )}
                   </div>
                   <ArrowRight className="size-4 shrink-0 text-muted-foreground" />
                 </Link>

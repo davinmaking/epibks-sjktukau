@@ -3,8 +3,9 @@
 import { useState, useMemo, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, Loader2 } from "lucide-react";
+import { Search, Loader2, CheckCheck } from "lucide-react";
 import { toast } from "sonner";
 import type { Tables } from "@/lib/types";
 
@@ -43,6 +44,64 @@ export function StudentCheckInList({
     const query = search.toLowerCase();
     return students.filter((s) => s.name.toLowerCase().includes(query));
   }, [students, search]);
+
+  const [batchLoading, setBatchLoading] = useState(false);
+
+  // Batch check-in: mark all unchecked students as present
+  const handleSelectAll = useCallback(async () => {
+    const unchecked = students.filter((s) => !checkedInStudentIds.has(s.id));
+    if (unchecked.length === 0) return;
+
+    setBatchLoading(true);
+    const supabase = createClient();
+
+    const records = unchecked.map((s) => ({
+      event_id: eventId,
+      student_id: s.id,
+      checked_in_by: teacherId,
+    }));
+
+    const { error } = await supabase
+      .from("student_attendance")
+      .upsert(records, { onConflict: "event_id,student_id" });
+
+    setBatchLoading(false);
+
+    if (error) {
+      console.error("Batch check-in failed:", error.message);
+      toast.error("批量签到失败");
+    } else {
+      toast.success(`已签到 ${unchecked.length} 名学生`);
+      onMutate?.();
+    }
+  }, [students, checkedInStudentIds, eventId, teacherId, onMutate]);
+
+  // Batch undo: uncheck all checked students
+  const handleUnselectAll = useCallback(async () => {
+    if (checkedInStudentIds.size === 0) return;
+
+    setBatchLoading(true);
+    const supabase = createClient();
+
+    const { error } = await supabase
+      .from("student_attendance")
+      .delete()
+      .eq("event_id", eventId)
+      .in("student_id", [...checkedInStudentIds]);
+
+    setBatchLoading(false);
+
+    if (error) {
+      console.error("Batch undo failed:", error.message);
+      toast.error("批量取消签到失败");
+    } else {
+      toast.success("已取消所有学生签到");
+      onMutate?.();
+    }
+  }, [checkedInStudentIds, eventId, onMutate]);
+
+  const allCheckedIn = checkedInStudentIds.size === students.length && students.length > 0;
+  const noneCheckedIn = checkedInStudentIds.size === 0;
 
   const handleToggle = useCallback(
     async (studentId: string, isCurrentlyCheckedIn: boolean) => {
@@ -95,18 +154,33 @@ export function StudentCheckInList({
 
   return (
     <div className="touch-manipulation space-y-3">
-      {/* Search bar */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          placeholder="搜索学生姓名..."
-          aria-label="搜索学生姓名"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="min-h-[44px] pl-9"
-          autoComplete="off"
-          autoCorrect="off"
-        />
+      {/* Search bar + select all */}
+      <div className="flex gap-2">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="搜索学生姓名..."
+            aria-label="搜索学生姓名"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="min-h-[44px] pl-9"
+            autoComplete="off"
+            autoCorrect="off"
+          />
+        </div>
+        <Button
+          variant={allCheckedIn ? "default" : "outline"}
+          className="min-h-[44px] gap-1.5 whitespace-nowrap"
+          onClick={allCheckedIn ? handleUnselectAll : handleSelectAll}
+          disabled={batchLoading}
+        >
+          {batchLoading ? (
+            <Loader2 className="size-4 animate-spin" />
+          ) : (
+            <CheckCheck className="size-4" />
+          )}
+          {allCheckedIn ? "取消全选" : "全选"}
+        </Button>
       </div>
 
       {/* Student list */}

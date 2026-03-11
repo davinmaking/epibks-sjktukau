@@ -35,6 +35,8 @@ interface FamilyCheckInDialogProps {
   className: string;
   teacherId: string;
   onSuccess?: () => void;
+  /** If true, auto-submit with pre-filled data without showing the dialog */
+  quickCheckIn?: boolean;
 }
 
 interface AttendeeFormData {
@@ -51,6 +53,7 @@ export function FamilyCheckInDialog({
   className,
   teacherId,
   onSuccess,
+  quickCheckIn,
 }: FamilyCheckInDialogProps) {
   const [selectedTypes, setSelectedTypes] = useState<Set<string>>(new Set());
   const [attendeeData, setAttendeeData] = useState<Map<string, AttendeeFormData>>(new Map());
@@ -133,6 +136,68 @@ export function FamilyCheckInDialog({
       setAttendeeData(preData);
     }
   }, [open, getAutoFillData]);
+
+  // Quick check-in: auto-submit when pre-filled data is available
+  useEffect(() => {
+    if (!open || !quickCheckIn) return;
+
+    // Build attendees from pre-filled data
+    const autoAttendees: AttendeeEntry[] = [];
+    for (const type of ATTENDEE_TYPES) {
+      const autoFill = getAutoFillData(type.value);
+      if (autoFill.name.trim()) {
+        autoAttendees.push({
+          type: type.value,
+          name: autoFill.name.trim(),
+          ic: autoFill.ic.trim(),
+          relationship: autoFill.relationship.trim(),
+        });
+      }
+    }
+
+    if (autoAttendees.length === 0) return; // no pre-filled data, show dialog normally
+
+    // Submit directly
+    const first = autoAttendees[0];
+    setSubmitting(true);
+
+    const supabase = createClient();
+    supabase
+      .from("family_attendance")
+      .insert({
+        event_id: eventId,
+        family_id: family.id,
+        class_name: className,
+        attendee_type: first.type,
+        attendee_name: first.name || null,
+        attendee_ic: first.ic || null,
+        attendee_relationship: first.relationship || null,
+        attendees: autoAttendees as unknown as Record<string, unknown>[],
+        checked_in_by: teacherId,
+      })
+      .then(({ error }) => {
+        setSubmitting(false);
+        if (error) {
+          if (error.code === "23505") {
+            toast.error("该家庭已签到");
+          } else {
+            console.error("Quick check-in error:", error);
+            toast.error("签到失败，请重试");
+          }
+        } else {
+          toast.success(`${family.guardian1_name} 签到成功`, {
+            description: autoAttendees.map((a) => a.type).join("、"),
+          });
+          onSuccess?.();
+        }
+        onOpenChange(false);
+      });
+  }, [open, quickCheckIn, family, eventId, className, teacherId, getAutoFillData, onOpenChange, onSuccess]);
+
+  // If quick check-in mode, don't render the dialog UI (submission happens via effect)
+  if (quickCheckIn && open) {
+    return null;
+  }
 
   function handleToggleType(type: string, checked: boolean) {
     if (checked) {
