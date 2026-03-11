@@ -711,8 +711,8 @@ export default function TeacherCheckInPage() {
                             if (attendees.length > 0) {
                               return attendees.map((att, i) => (
                                 <tr key={`${family.id}-${i}`} className="border-b">
-                                  <td className="whitespace-nowrap px-3 py-2">{i === 0 ? childNames : ""}</td>
-                                  <td className="whitespace-nowrap px-3 py-2 font-medium">{att.name || "-"}</td>
+                                  <td className="max-w-[120px] truncate px-3 py-2" title={i === 0 ? childNames : ""}>{i === 0 ? childNames : ""}</td>
+                                  <td className="max-w-[160px] truncate px-3 py-2 font-medium" title={att.name || "-"}>{att.name || "-"}</td>
                                   <td className="whitespace-nowrap px-3 py-2 font-mono">{att.ic || "-"}</td>
                                   <td className="whitespace-nowrap px-3 py-2">{att.relationship || att.type || "-"}</td>
                                 </tr>
@@ -720,8 +720,8 @@ export default function TeacherCheckInPage() {
                             }
                             return [(
                               <tr key={family.id} className="border-b">
-                                <td className="whitespace-nowrap px-3 py-2">{childNames}</td>
-                                <td className="whitespace-nowrap px-3 py-2 font-medium">{record.attendee_name || "-"}</td>
+                                <td className="max-w-[120px] truncate px-3 py-2" title={childNames}>{childNames}</td>
+                                <td className="max-w-[160px] truncate px-3 py-2 font-medium" title={record.attendee_name || "-"}>{record.attendee_name || "-"}</td>
                                 <td className="whitespace-nowrap px-3 py-2 font-mono">{record.attendee_ic || "-"}</td>
                                 <td className="whitespace-nowrap px-3 py-2">{record.attendee_relationship || record.attendee_type || "-"}</td>
                               </tr>
