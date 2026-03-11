@@ -113,7 +113,8 @@ export function useRealtimeAttendance(
           filter: `event_id=eq.${eventId}`,
         },
         (payload) => {
-          const deletedId = (payload.old as { id: string }).id;
+          const deletedId = (payload.old as { id?: string })?.id;
+          if (!deletedId) return;
           setFamilyAttendance((prev) =>
             prev.filter((item) => item.id !== deletedId)
           );
@@ -156,7 +157,8 @@ export function useRealtimeAttendance(
           filter: `event_id=eq.${eventId}`,
         },
         (payload) => {
-          const deletedId = (payload.old as { id: string }).id;
+          const deletedId = (payload.old as { id?: string })?.id;
+          if (!deletedId) return;
           setStudentAttendance((prev) =>
             prev.filter((item) => item.id !== deletedId)
           );

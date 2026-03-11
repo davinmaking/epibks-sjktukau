@@ -251,11 +251,11 @@ export default function EventDetailPage() {
     }
   }
 
-  // CSV export — detailed attendance with students, guardians, ICs, class
+  // CSV export — only checked-in families with students, guardians, ICs, class
   function handleExportDetailCSV() {
     if (!event) return;
 
-    const headers = ["班级", "学生姓名", "出席者姓名", "身份证号码", "关系", "签到来源"];
+    const headers = ["班级", "学生姓名", "出席者姓名", "身份证号码", "关系"];
     const rows: string[][] = [];
 
     for (const className of includedClassNames) {
@@ -264,25 +264,15 @@ export default function EventDetailPage() {
       );
 
       for (const student of classStudents) {
-        if (!student.family_id) {
-          rows.push([className, student.name, "-", "-", "-", "未签到"]);
-          continue;
-        }
+        if (!student.family_id) continue;
 
-        // Find attendance record for this family
         const record = familyAttendance.find(
           (fa) => fa.family_id === student.family_id
         );
-
-        if (!record) {
-          rows.push([className, student.name, "-", "-", "-", "未签到"]);
-          continue;
-        }
+        if (!record) continue;
 
         const attendees =
           (record.attendees as unknown as AttendeeEntry[]) ?? [];
-        const source =
-          record.class_name === className ? "本班" : record.class_name;
 
         if (attendees.length > 0) {
           for (const att of attendees) {
@@ -292,7 +282,6 @@ export default function EventDetailPage() {
               att.name || "-",
               att.ic || "-",
               att.relationship || att.type || "-",
-              source,
             ]);
           }
         } else {
@@ -302,13 +291,11 @@ export default function EventDetailPage() {
             record.attendee_name || "-",
             record.attendee_ic || "-",
             record.attendee_relationship || record.attendee_type || "-",
-            source,
           ]);
         }
       }
     }
 
-    // BOM for Excel Chinese support
     const escapeCsv = (s: string) =>
       s.includes(",") || s.includes('"') ? `"${s.replace(/"/g, '""')}"` : s;
     const csv =
@@ -441,7 +428,7 @@ export default function EventDetailPage() {
         <Tabs defaultValue="overview">
           <TabsList>
             <TabsTrigger value="overview">概览</TabsTrigger>
-            <TabsTrigger value="report">按班级报告</TabsTrigger>
+            <TabsTrigger value="report">班级报告</TabsTrigger>
             <TabsTrigger value="detail">出席详情</TabsTrigger>
           </TabsList>
 
@@ -500,7 +487,7 @@ export default function EventDetailPage() {
           {/* Tab 2: Class Report Table */}
           <TabsContent value="report" className="space-y-4">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold">按班级报告</h2>
+              <h2 className="text-lg font-semibold">班级报告</h2>
               <Button size="sm" onClick={handleExportSummaryCSV}>
                 <FileDown className="size-4" />
                 导出 CSV
@@ -625,7 +612,7 @@ export default function EventDetailPage() {
               <h2 className="text-lg font-semibold">出席详情</h2>
               <Button size="sm" onClick={handleExportDetailCSV}>
                 <FileDown className="size-4" />
-                导出详情 CSV
+                导出 CSV
               </Button>
             </div>
             <p className="text-sm text-muted-foreground">
@@ -674,25 +661,25 @@ export default function EventDetailPage() {
                         </p>
                       ) : (
                         <div className="overflow-x-auto rounded-lg border">
-                          <table className="w-full text-xs">
+                          <table className="w-full table-fixed text-xs">
                             <thead>
                               <tr className="border-b bg-muted/50">
-                                <th className="px-3 py-2 text-left font-medium">
+                                <th className="w-[40px] px-3 py-2 text-left font-medium">
                                   #
                                 </th>
-                                <th className="px-3 py-2 text-left font-medium">
+                                <th className="w-[22%] px-3 py-2 text-left font-medium">
                                   学生
                                 </th>
-                                <th className="px-3 py-2 text-left font-medium">
+                                <th className="w-[25%] px-3 py-2 text-left font-medium">
                                   出席者姓名
                                 </th>
-                                <th className="px-3 py-2 text-left font-medium">
+                                <th className="w-[20%] px-3 py-2 text-left font-medium">
                                   身份证号码
                                 </th>
-                                <th className="px-3 py-2 text-left font-medium">
+                                <th className="w-[13%] px-3 py-2 text-left font-medium">
                                   关系
                                 </th>
-                                <th className="px-3 py-2 text-left font-medium">
+                                <th className="w-[13%] px-3 py-2 text-left font-medium">
                                   签到来源
                                 </th>
                               </tr>
@@ -732,21 +719,21 @@ export default function EventDetailPage() {
                                           <td className="px-3 py-2 text-muted-foreground">
                                             {rowNum}
                                           </td>
-                                          <td className="px-3 py-2">
+                                          <td className="truncate px-3 py-2" title={i === 0 ? children : ""}>
                                             {i === 0 ? children : ""}
                                           </td>
-                                          <td className="px-3 py-2 font-medium">
+                                          <td className="truncate px-3 py-2 font-medium" title={att.name || "-"}>
                                             {att.name || "-"}
                                           </td>
-                                          <td className="px-3 py-2 font-mono">
+                                          <td className="truncate px-3 py-2 font-mono">
                                             {att.ic || "-"}
                                           </td>
-                                          <td className="px-3 py-2">
+                                          <td className="truncate px-3 py-2">
                                             {att.relationship ||
                                               att.type ||
                                               "-"}
                                           </td>
-                                          <td className="px-3 py-2">
+                                          <td className="truncate px-3 py-2">
                                             {isSibling ? (
                                               <span className="text-blue-600 dark:text-blue-400">
                                                 {source}
@@ -769,21 +756,21 @@ export default function EventDetailPage() {
                                       <td className="px-3 py-2 text-muted-foreground">
                                         {rowNum}
                                       </td>
-                                      <td className="px-3 py-2">
+                                      <td className="truncate px-3 py-2" title={children}>
                                         {children}
                                       </td>
-                                      <td className="px-3 py-2 font-medium">
+                                      <td className="truncate px-3 py-2 font-medium" title={record.attendee_name || "-"}>
                                         {record.attendee_name || "-"}
                                       </td>
-                                      <td className="px-3 py-2 font-mono">
+                                      <td className="truncate px-3 py-2 font-mono">
                                         {record.attendee_ic || "-"}
                                       </td>
-                                      <td className="px-3 py-2">
+                                      <td className="truncate px-3 py-2">
                                         {record.attendee_relationship ||
                                           record.attendee_type ||
                                           "-"}
                                       </td>
-                                      <td className="px-3 py-2">
+                                      <td className="truncate px-3 py-2">
                                         {isSibling ? (
                                           <span className="text-blue-600 dark:text-blue-400">
                                             {source}

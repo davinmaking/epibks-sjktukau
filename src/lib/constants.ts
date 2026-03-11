@@ -29,8 +29,8 @@ export const CLASS_NAMES = [
 // Maps class_name to year_level for grouping
 export const CLASS_YEAR_MAP: Record<string, string> = {
   PRASEKOLAH: "PRASEKOLAH",
-  JOYFUL: "PRASEKOLAH",
-  SUNSHINE: "PRASEKOLAH",
+  JOYFUL: "PPKI",
+  SUNSHINE: "PPKI",
   "T1 TEKUN": "TAHUN 1",
   "T2 KREATIF": "TAHUN 2",
   "T3 BERDIKARI": "TAHUN 3",

@@ -6,7 +6,7 @@ import { AuthProvider, useAuth } from "@/components/auth-provider";
 import { NavSidebar } from "@/components/nav-sidebar";
 
 function AdminGuard({ children }: { children: React.ReactNode }) {
-  const { teacher, isAdmin } = useAuth();
+  const { user, teacher, isAdmin } = useAuth();
   const router = useRouter();
   const [checked, setChecked] = useState(false);
 
@@ -17,8 +17,13 @@ function AdminGuard({ children }: { children: React.ReactNode }) {
       } else {
         setChecked(true);
       }
+    } else if (user) {
+      // User exists but no teacher record — redirect to teacher home
+      // (avoids redirect loop with middleware which redirects /login → /dashboard)
+      router.push("/home");
     }
-  }, [teacher, isAdmin, router]);
+    // If neither user nor teacher, AuthProvider already handles redirect to /login
+  }, [user, teacher, isAdmin, router]);
 
   if (!checked) {
     return (

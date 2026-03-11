@@ -42,7 +42,7 @@ export async function middleware(request: NextRequest) {
   }
 
   // Role-based route protection: non-admin users cannot access admin routes
-  const adminRoutes = ["/dashboard", "/events", "/reports", "/users"];
+  const adminRoutes = ["/dashboard", "/events", "/reports", "/users", "/students"];
   const isAdminRoute = adminRoutes.some((r) =>
     request.nextUrl.pathname.startsWith(r)
   );

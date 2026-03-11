@@ -104,10 +104,12 @@ export default function EventsPage() {
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {events.map((event) => (
+          {events.map((event) => {
+            const isPast = event.date < new Date().toISOString().split("T")[0];
+            return (
               <Card
                 key={event.id}
-                className="cursor-pointer transition-shadow hover:shadow-md focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                className={`cursor-pointer transition-shadow hover:shadow-md focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none ${isPast ? "opacity-50" : ""}`}
                 role="button"
                 tabIndex={0}
                 onClick={() => router.push(`/events/${event.id}`)}
@@ -160,7 +162,8 @@ export default function EventsPage() {
                   </div>
                 </CardContent>
               </Card>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

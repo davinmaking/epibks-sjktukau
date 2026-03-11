@@ -182,6 +182,15 @@ export async function POST(request: Request) {
       );
     }
 
+    // Limit file size to 10MB to prevent memory exhaustion
+    const MAX_FILE_SIZE = 10 * 1024 * 1024;
+    if (file.size > MAX_FILE_SIZE) {
+      return NextResponse.json(
+        { error: "文件大小不能超过 10MB" },
+        { status: 400 }
+      );
+    }
+
     const buffer = Buffer.from(await file.arrayBuffer());
     const workbook = XLSX.read(buffer, { type: "buffer" });
     const sheetName = workbook.SheetNames[0];
@@ -198,8 +207,6 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
-    const headerRow = allRows[headerRowIndex];
-
     const dataRows = allRows.slice(headerRowIndex + 1).filter((row) => {
       // Skip empty rows - check BIL column has a number
       const bil = row[COL.BIL];
@@ -374,9 +381,9 @@ export async function POST(request: Request) {
 
     return NextResponse.json(results);
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
+    console.error("Import error:", err);
     return NextResponse.json(
-      { error: `导入失败: ${message}` },
+      { error: "导入失败，请重试" },
       { status: 500 }
     );
   }
