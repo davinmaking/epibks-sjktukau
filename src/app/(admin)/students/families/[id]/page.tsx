@@ -96,7 +96,7 @@ export default function FamilyDetailPage() {
   if (!family) {
     return (
       <div className="space-y-4">
-        <Button variant="ghost" onClick={() => router.push("/students")}>
+        <Button variant="ghost" onClick={() => router.back()}>
           <ArrowLeft className="size-4" data-icon="inline-start" />
           返回学生列表
         </Button>
@@ -110,7 +110,7 @@ export default function FamilyDetailPage() {
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       {/* Back button */}
-      <Button variant="ghost" onClick={() => router.push("/students")}>
+      <Button variant="ghost" onClick={() => router.back()}>
         <ArrowLeft className="size-4" data-icon="inline-start" />
         返回学生列表
       </Button>
