@@ -17,7 +17,7 @@ import {
   CheckCircle2,
   UserCheck,
   Undo2,
-  Filter,
+  Pencil,
 } from "lucide-react";
 import { toast } from "sonner";
 import type { Tables } from "@/lib/types";
@@ -47,9 +47,8 @@ export default function TeacherCheckInPage() {
   const [selectedFamily, setSelectedFamily] = useState<FamilyGroup | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  // Search & filter
+  // Search
   const [search, setSearch] = useState("");
-  const [showUncheckedOnly, setShowUncheckedOnly] = useState(false);
 
   // Undo family check-in
   const [undoingFamilyIds, setUndoingFamilyIds] = useState<Set<string>>(new Set());
@@ -177,10 +176,6 @@ export default function TeacherCheckInPage() {
   const filteredFamilies = useMemo(() => {
     let result = familyGroups;
 
-    if (showUncheckedOnly) {
-      result = result.filter((g) => !getFamilyStatus(g).allDone);
-    }
-
     if (search.trim()) {
       const query = search.toLowerCase();
       result = result.filter(({ family, students: children }) => {
@@ -204,7 +199,7 @@ export default function TeacherCheckInPage() {
 
     return result;
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [familyGroups, search, showUncheckedOnly, familyAttendanceMap, checkedInStudentIds]);
+  }, [familyGroups, search, familyAttendanceMap, checkedInStudentIds]);
 
   async function handleUndoFamilyCheckIn(familyId: string) {
     setUndoingFamilyIds((prev) => new Set(prev).add(familyId));
@@ -262,8 +257,6 @@ export default function TeacherCheckInPage() {
     );
   }
 
-  const uncheckedCount = familyGroups.filter((g) => !getFamilyStatus(g).allDone).length;
-
   return (
     <div className="touch-manipulation space-y-6">
       {/* Header */}
@@ -320,34 +313,18 @@ export default function TeacherCheckInPage() {
         )}
       </div>
 
-      {/* Search bar + filter */}
-      <div className="flex gap-2">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="搜索学生或家长姓名..."
-            aria-label="搜索学生或家长姓名"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="min-h-[44px] pl-9"
-            autoComplete="off"
-            autoCorrect="off"
-          />
-        </div>
-        <Button
-          variant={showUncheckedOnly ? "default" : "outline"}
-          size="icon"
-          className="relative min-h-[44px] min-w-[44px]"
-          onClick={() => setShowUncheckedOnly((v) => !v)}
-          aria-label={showUncheckedOnly ? "显示所有" : "只显示未完成"}
-        >
-          <Filter className="size-4" />
-          {showUncheckedOnly && uncheckedCount > 0 && (
-            <span className="absolute -right-1 -top-1 flex size-5 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground">
-              {uncheckedCount}
-            </span>
-          )}
-        </Button>
+      {/* Search bar */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          placeholder="搜索学生或家长姓名..."
+          aria-label="搜索学生或家长姓名"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="min-h-[44px] pl-9"
+          autoComplete="off"
+          autoCorrect="off"
+        />
       </div>
 
       {/* Family list — children's names first */}
@@ -355,7 +332,7 @@ export default function TeacherCheckInPage() {
         {filteredFamilies.length === 0 ? (
           <div className="flex h-32 flex-col items-center justify-center gap-2 text-sm text-muted-foreground">
             <CheckCircle2 className="size-8" />
-            {showUncheckedOnly ? "全部已完成" : "无匹配结果"}
+            无匹配结果
           </div>
         ) : (
           filteredFamilies.map((group) => {
@@ -439,11 +416,33 @@ export default function TeacherCheckInPage() {
                       已由 {attendance.class_name} 签到
                     </Badge>
                   )}
-                  {!allDone && (
-                    <Badge className="gap-1 bg-primary/10 text-primary hover:bg-primary/10">
-                      <UserCheck className="size-3" />
+                  {!allDone ? (
+                    <Button
+                      size="sm"
+                      className="min-h-[36px] gap-1.5"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedFamily(group);
+                        setDialogOpen(true);
+                      }}
+                    >
+                      <UserCheck className="size-3.5" />
                       签到
-                    </Badge>
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="min-h-[36px] gap-1 text-muted-foreground"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedFamily(group);
+                        setDialogOpen(true);
+                      }}
+                    >
+                      <Pencil className="size-3" />
+                      编辑
+                    </Button>
                   )}
                 </div>
               </div>
