@@ -33,9 +33,9 @@ interface NavItem {
 }
 
 const adminLinks: NavItem[] = [
-  { href: "/dashboard", label: "仪表板", icon: LayoutDashboard },
+  { href: "/dashboard", label: "仪表盘", icon: LayoutDashboard },
   { href: "/events", label: "活动管理", icon: Calendar },
-  { href: "/students", label: "学生", icon: Users },
+  { href: "/students", label: "学生管理", icon: Users },
   { href: "/users", label: "用户管理", icon: UserCog },
 ];
 

@@ -82,7 +82,7 @@ export default function StudentsPage() {
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold">学生数据</h1>
+          <h1 className="text-2xl font-bold">学生管理</h1>
           <p className="text-sm text-muted-foreground">
             共 {students.length} 名学生
           </p>
