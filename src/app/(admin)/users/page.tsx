@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
-import { CLASS_NAMES, ROLES } from "@/lib/constants";
+import { CLASS_NAMES } from "@/lib/constants";
 import type { Tables } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -49,6 +49,16 @@ const ROLE_LABEL: Record<string, string> = {
   teacher: "教师",
 };
 
+const LABEL_TO_ROLE: Record<string, string> = {
+  "管理员": "admin",
+  "教师": "teacher",
+};
+
+const ROLE_OPTIONS = [
+  { value: "管理员", role: "admin" },
+  { value: "教师", role: "teacher" },
+];
+
 export default function UsersPage() {
   const { user } = useAuth();
   const [teachers, setTeachers] = useState<Teacher[]>([]);
@@ -60,7 +70,7 @@ export default function UsersPage() {
     name: "",
     email: "",
     password: "",
-    role: "teacher",
+    role: "教师",
     class_name: "",
   });
   const [addSubmitting, setAddSubmitting] = useState(false);
@@ -118,7 +128,7 @@ export default function UsersPage() {
       name: "",
       email: "",
       password: "",
-      role: "teacher",
+      role: "教师",
       class_name: "",
     });
     setAddError("");
@@ -146,7 +156,7 @@ export default function UsersPage() {
           name: addForm.name.trim(),
           email: addForm.email.trim(),
           password: addForm.password,
-          role: addForm.role,
+          role: LABEL_TO_ROLE[addForm.role] ?? addForm.role,
           class_name: addForm.class_name || null,
         }),
       });
@@ -173,7 +183,7 @@ export default function UsersPage() {
     setEditTeacher(teacher);
     setEditForm({
       name: teacher.name,
-      role: teacher.role,
+      role: ROLE_LABEL[teacher.role] ?? teacher.role,
       class_name: teacher.class_name ?? "",
     });
     setEditError("");
@@ -196,7 +206,7 @@ export default function UsersPage() {
         body: JSON.stringify({
           id: editTeacher.id,
           name: editForm.name.trim(),
-          role: editForm.role,
+          role: LABEL_TO_ROLE[editForm.role] ?? editForm.role,
           class_name: editForm.class_name || null,
         }),
       });
@@ -471,16 +481,16 @@ export default function UsersPage() {
               <Select
                 value={addForm.role}
                 onValueChange={(v) =>
-                  setAddForm((f) => ({ ...f, role: v ?? "teacher" }))
+                  setAddForm((f) => ({ ...f, role: v ?? "教师" }))
                 }
               >
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="选择角色" />
                 </SelectTrigger>
                 <SelectContent>
-                  {ROLES.map((r) => (
-                    <SelectItem key={r} value={r}>
-                      {ROLE_LABEL[r] ?? r}
+                  {ROLE_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.role} value={opt.value}>
+                      {opt.value}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -567,16 +577,16 @@ export default function UsersPage() {
                 <Select
                   value={editForm.role}
                   onValueChange={(v) =>
-                    setEditForm((f) => ({ ...f, role: v ?? "teacher" }))
+                    setEditForm((f) => ({ ...f, role: v ?? "教师" }))
                   }
                 >
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder="选择角色" />
                   </SelectTrigger>
                   <SelectContent>
-                    {ROLES.map((r) => (
-                      <SelectItem key={r} value={r}>
-                        {ROLE_LABEL[r] ?? r}
+                    {ROLE_OPTIONS.map((opt) => (
+                      <SelectItem key={opt.role} value={opt.value}>
+                        {opt.value}
                       </SelectItem>
                     ))}
                   </SelectContent>
