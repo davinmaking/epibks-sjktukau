@@ -44,11 +44,10 @@ export default function StudentsPage() {
   const [students, setStudents] = useState<StudentRow[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const initialClass = searchParams.get("class") ?? "全部班级";
-  const [classFilter, setClassFilter] = useState<string>(initialClass);
+  // Derive filter directly from URL so back-navigation restores it
+  const classFilter = searchParams.get("class") ?? "全部班级";
 
   const handleClassChange = useCallback((val: string) => {
-    setClassFilter(val);
     const params = new URLSearchParams(searchParams.toString());
     if (val === "全部班级") {
       params.delete("class");
