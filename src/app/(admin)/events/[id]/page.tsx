@@ -59,9 +59,6 @@ function rateCellColor(checked: number, total: number): string {
   return `${colors.text} ${colors.textDark}`;
 }
 
-function rateLabel(checked: number, total: number): string {
-  return getStatusColors(ratePercent(checked, total)).label;
-}
 
 export default function EventDetailPage() {
   const params = useParams();
@@ -552,13 +549,7 @@ export default function EventDetailPage() {
                               {rateString(
                                 row.checkedFamilies,
                                 row.totalFamilies
-                              )}{" "}
-                              <span className="font-sans text-xs">
-                                {rateLabel(
-                                  row.checkedFamilies,
-                                  row.totalFamilies
-                                )}
-                              </span>
+                              )}
                             </td>
                           )}
                           {showStudent && (
@@ -568,13 +559,7 @@ export default function EventDetailPage() {
                               {rateString(
                                 row.checkedStudents,
                                 row.totalStudents
-                              )}{" "}
-                              <span className="font-sans text-xs">
-                                {rateLabel(
-                                  row.checkedStudents,
-                                  row.totalStudents
-                                )}
-                              </span>
+                              )}
                             </td>
                           )}
                         </tr>
@@ -616,7 +601,7 @@ export default function EventDetailPage() {
               </Button>
             </div>
             <p className="text-sm text-muted-foreground">
-              各班出席家长/监护人详情，含学生姓名（可用于制作出席证书）
+              各班出席家长/监护人详情，含学生姓名
             </p>
 
             {!showFamily ? (
