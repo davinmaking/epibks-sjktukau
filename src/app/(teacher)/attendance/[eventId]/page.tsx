@@ -690,13 +690,19 @@ export default function TeacherCheckInPage() {
                   <p className="text-xs text-muted-foreground">暂无签到记录</p>
                 ) : (
                   <div className="overflow-x-auto rounded-lg border">
-                    <table className="w-full text-xs">
+                    <table className="w-full table-fixed text-xs">
+                      <colgroup>
+                        <col className="w-[22%]" />
+                        <col className="w-[34%]" />
+                        <col className="w-[26%]" />
+                        <col className="w-[18%]" />
+                      </colgroup>
                       <thead>
                         <tr className="border-b bg-muted/50">
-                          <th className="whitespace-nowrap px-3 py-2 text-left font-medium">学生</th>
-                          <th className="whitespace-nowrap px-3 py-2 text-left font-medium">出席者</th>
-                          <th className="whitespace-nowrap px-3 py-2 text-left font-medium">身份证号</th>
-                          <th className="whitespace-nowrap px-3 py-2 text-left font-medium">关系</th>
+                          <th className="px-3 py-2 text-left font-medium">学生</th>
+                          <th className="px-3 py-2 text-left font-medium">出席者</th>
+                          <th className="px-3 py-2 text-left font-medium">身份证号</th>
+                          <th className="px-3 py-2 text-left font-medium">关系</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -711,19 +717,19 @@ export default function TeacherCheckInPage() {
                             if (attendees.length > 0) {
                               return attendees.map((att, i) => (
                                 <tr key={`${family.id}-${i}`} className="border-b">
-                                  <td className="max-w-[120px] truncate px-3 py-2" title={i === 0 ? childNames : ""}>{i === 0 ? childNames : ""}</td>
-                                  <td className="max-w-[160px] truncate px-3 py-2 font-medium" title={att.name || "-"}>{att.name || "-"}</td>
-                                  <td className="whitespace-nowrap px-3 py-2 font-mono">{att.ic || "-"}</td>
-                                  <td className="whitespace-nowrap px-3 py-2">{att.relationship || att.type || "-"}</td>
+                                  <td className="truncate px-3 py-2" title={i === 0 ? childNames : ""}>{i === 0 ? childNames : ""}</td>
+                                  <td className="truncate px-3 py-2 font-medium" title={att.name || "-"}>{att.name || "-"}</td>
+                                  <td className="truncate px-3 py-2 font-mono">{att.ic || "-"}</td>
+                                  <td className="truncate px-3 py-2">{att.relationship || att.type || "-"}</td>
                                 </tr>
                               ));
                             }
                             return [(
                               <tr key={family.id} className="border-b">
-                                <td className="max-w-[120px] truncate px-3 py-2" title={childNames}>{childNames}</td>
-                                <td className="max-w-[160px] truncate px-3 py-2 font-medium" title={record.attendee_name || "-"}>{record.attendee_name || "-"}</td>
-                                <td className="whitespace-nowrap px-3 py-2 font-mono">{record.attendee_ic || "-"}</td>
-                                <td className="whitespace-nowrap px-3 py-2">{record.attendee_relationship || record.attendee_type || "-"}</td>
+                                <td className="truncate px-3 py-2" title={childNames}>{childNames}</td>
+                                <td className="truncate px-3 py-2 font-medium" title={record.attendee_name || "-"}>{record.attendee_name || "-"}</td>
+                                <td className="truncate px-3 py-2 font-mono">{record.attendee_ic || "-"}</td>
+                                <td className="truncate px-3 py-2">{record.attendee_relationship || record.attendee_type || "-"}</td>
                               </tr>
                             )];
                           })}

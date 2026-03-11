@@ -769,25 +769,33 @@ export default function EventDetailPage() {
                         </p>
                       ) : (
                         <div className="overflow-x-auto rounded-lg border">
-                          <table className="w-full text-xs">
+                          <table className="w-full table-fixed text-xs">
+                            <colgroup>
+                              <col className="w-[36px]" />
+                              <col className="w-[18%]" />
+                              <col className="w-[28%]" />
+                              <col className="w-[22%]" />
+                              <col className="w-[14%]" />
+                              <col className="w-[14%]" />
+                            </colgroup>
                             <thead>
                               <tr className="border-b bg-muted/50">
                                 <th className="whitespace-nowrap px-3 py-2 text-left font-medium">
                                   #
                                 </th>
-                                <th className="whitespace-nowrap px-3 py-2 text-left font-medium">
+                                <th className="px-3 py-2 text-left font-medium">
                                   学生
                                 </th>
-                                <th className="whitespace-nowrap px-3 py-2 text-left font-medium">
+                                <th className="px-3 py-2 text-left font-medium">
                                   出席者姓名
                                 </th>
-                                <th className="whitespace-nowrap px-3 py-2 text-left font-medium">
+                                <th className="px-3 py-2 text-left font-medium">
                                   身份证号码
                                 </th>
-                                <th className="whitespace-nowrap px-3 py-2 text-left font-medium">
+                                <th className="px-3 py-2 text-left font-medium">
                                   关系
                                 </th>
-                                <th className="whitespace-nowrap px-3 py-2 text-left font-medium">
+                                <th className="px-3 py-2 text-left font-medium">
                                   签到来源
                                 </th>
                               </tr>
@@ -827,10 +835,10 @@ export default function EventDetailPage() {
                                           <td className="whitespace-nowrap px-3 py-2 text-muted-foreground">
                                             {rowNum}
                                           </td>
-                                          <td className="max-w-[120px] truncate px-3 py-2" title={i === 0 ? children : ""}>
+                                          <td className="truncate px-3 py-2" title={i === 0 ? children : ""}>
                                             {i === 0 ? children : ""}
                                           </td>
-                                          <td className="max-w-[160px] truncate px-3 py-2 font-medium" title={att.name || "-"}>
+                                          <td className="truncate px-3 py-2 font-medium" title={att.name || "-"}>
                                             {att.name || "-"}
                                           </td>
                                           <td className="whitespace-nowrap px-3 py-2 font-mono">
@@ -864,10 +872,10 @@ export default function EventDetailPage() {
                                       <td className="whitespace-nowrap px-3 py-2 text-muted-foreground">
                                         {rowNum}
                                       </td>
-                                      <td className="max-w-[120px] truncate px-3 py-2" title={children}>
+                                      <td className="truncate px-3 py-2" title={children}>
                                         {children}
                                       </td>
-                                      <td className="max-w-[160px] truncate px-3 py-2 font-medium" title={record.attendee_name || "-"}>
+                                      <td className="truncate px-3 py-2 font-medium" title={record.attendee_name || "-"}>
                                         {record.attendee_name || "-"}
                                       </td>
                                       <td className="whitespace-nowrap px-3 py-2 font-mono">
