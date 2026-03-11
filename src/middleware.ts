@@ -29,16 +29,24 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user && !request.nextUrl.pathname.startsWith("/login")) {
+  // Helper: create a redirect that preserves refreshed auth cookies
+  function redirectWithCookies(pathname: string) {
     const url = request.nextUrl.clone();
-    url.pathname = "/login";
-    return NextResponse.redirect(url);
+    url.pathname = pathname;
+    const redirectResponse = NextResponse.redirect(url);
+    // Copy any auth cookies that were refreshed during getUser()
+    supabaseResponse.cookies.getAll().forEach((cookie) => {
+      redirectResponse.cookies.set(cookie.name, cookie.value, cookie);
+    });
+    return redirectResponse;
+  }
+
+  if (!user && !request.nextUrl.pathname.startsWith("/login")) {
+    return redirectWithCookies("/login");
   }
 
   if (user && request.nextUrl.pathname === "/login") {
-    const url = request.nextUrl.clone();
-    url.pathname = "/dashboard";
-    return NextResponse.redirect(url);
+    return redirectWithCookies("/dashboard");
   }
 
   // Role-based route protection: non-admin users cannot access admin routes
@@ -55,9 +63,7 @@ export async function middleware(request: NextRequest) {
       .single();
 
     if (teacher?.role !== "admin") {
-      const url = request.nextUrl.clone();
-      url.pathname = "/home";
-      return NextResponse.redirect(url);
+      return redirectWithCookies("/home");
     }
   }
 
