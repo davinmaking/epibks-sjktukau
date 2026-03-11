@@ -264,19 +264,6 @@ export default function TeacherCheckInPage() {
 
   const uncheckedCount = familyGroups.filter((g) => !getFamilyStatus(g).allDone).length;
 
-  // Progress stats to show
-  const progressParts: string[] = [];
-  if (event.track_family) progressParts.push(`家庭 ${checkedInFamilies}/${totalFamilies}`);
-  if (event.track_student) progressParts.push(`学生 ${checkedInStudents}/${totalStudents}`);
-
-  const overallRate = (() => {
-    let total = 0;
-    let checked = 0;
-    if (event.track_family) { total += totalFamilies; checked += checkedInFamilies; }
-    if (event.track_student) { total += totalStudents; checked += checkedInStudents; }
-    return total > 0 ? Math.round((checked / total) * 100) : 0;
-  })();
-
   return (
     <div className="touch-manipulation space-y-6">
       {/* Header */}
@@ -299,20 +286,38 @@ export default function TeacherCheckInPage() {
 
       {/* Sticky progress bar */}
       <div className="sticky top-14 z-10 -mx-1 rounded-lg bg-background/95 px-1 py-2 backdrop-blur-sm md:top-0">
-        <div className="flex items-center justify-between text-sm">
-          <span className="font-medium">
-            {progressParts.join(" · ")}
-          </span>
-          <span className="font-medium text-muted-foreground">
-            {overallRate}%
-          </span>
-        </div>
-        <div className="mt-1.5 h-2 w-full overflow-hidden rounded-full bg-muted">
-          <div
-            className="h-full rounded-full bg-primary transition-all duration-500"
-            style={{ width: `${overallRate}%` }}
-          />
-        </div>
+        {event.track_family && (
+          <div>
+            <div className="flex items-center justify-between text-sm">
+              <span className="font-medium">家庭 {checkedInFamilies}/{totalFamilies}</span>
+              <span className="font-medium text-muted-foreground">
+                {totalFamilies > 0 ? Math.round((checkedInFamilies / totalFamilies) * 100) : 0}%
+              </span>
+            </div>
+            <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-muted">
+              <div
+                className="h-full rounded-full bg-primary transition-all duration-500"
+                style={{ width: `${totalFamilies > 0 ? Math.round((checkedInFamilies / totalFamilies) * 100) : 0}%` }}
+              />
+            </div>
+          </div>
+        )}
+        {event.track_student && (
+          <div className={event.track_family ? "mt-2" : ""}>
+            <div className="flex items-center justify-between text-sm">
+              <span className="font-medium">学生 {checkedInStudents}/{totalStudents}</span>
+              <span className="font-medium text-muted-foreground">
+                {totalStudents > 0 ? Math.round((checkedInStudents / totalStudents) * 100) : 0}%
+              </span>
+            </div>
+            <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-muted">
+              <div
+                className="h-full rounded-full bg-primary transition-all duration-500"
+                style={{ width: `${totalStudents > 0 ? Math.round((checkedInStudents / totalStudents) * 100) : 0}%` }}
+              />
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Search bar + filter */}
@@ -406,7 +411,7 @@ export default function TeacherCheckInPage() {
                 </div>
 
                 <div className="flex shrink-0 items-center gap-1">
-                  {allDone && attendance && attendance.class_name === teacher.class_name && (
+                  {familyDone && attendance && attendance.class_name === teacher.class_name && event.track_family && (
                     <>
                       <span className="text-xs text-muted-foreground">
                         {new Date(attendance.checked_in_at).toLocaleTimeString("zh-CN", {
@@ -414,25 +419,23 @@ export default function TeacherCheckInPage() {
                           minute: "2-digit",
                         })}
                       </span>
-                      {event.track_family && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="min-h-[44px] min-w-[44px] text-muted-foreground hover:text-destructive"
-                          disabled={undoingFamilyIds.has(family.id)}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleUndoFamilyCheckIn(family.id);
-                          }}
-                          aria-label="撤回家长签到"
-                        >
-                          {undoingFamilyIds.has(family.id) ? (
-                            <Loader2 className="size-4 animate-spin" />
-                          ) : (
-                            <Undo2 className="size-4" />
-                          )}
-                        </Button>
-                      )}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="min-h-[44px] min-w-[44px] text-muted-foreground hover:text-destructive"
+                        disabled={undoingFamilyIds.has(family.id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleUndoFamilyCheckIn(family.id);
+                        }}
+                        aria-label="撤回家长签到"
+                      >
+                        {undoingFamilyIds.has(family.id) ? (
+                          <Loader2 className="size-4 animate-spin" />
+                        ) : (
+                          <Undo2 className="size-4" />
+                        )}
+                      </Button>
                     </>
                   )}
                   {isCheckedInByOther && (

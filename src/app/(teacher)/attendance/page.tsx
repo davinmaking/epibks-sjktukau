@@ -13,8 +13,10 @@ import { formatDateWithWeekday } from "@/lib/utils";
 type Event = Tables<"events">;
 
 interface EventWithRate extends Event {
-  checkedIn: number;
+  checkedInFamilies: number;
   totalFamilies: number;
+  checkedInStudents: number;
+  totalStudents: number;
 }
 
 export default function TeacherEventsPage() {
@@ -39,7 +41,7 @@ export default function TeacherEventsPage() {
           .order("date", { ascending: false }),
         supabase
           .from("students")
-          .select("family_id")
+          .select("id, family_id")
           .eq("class_name", teacher!.class_name!),
       ]);
 
@@ -52,21 +54,40 @@ export default function TeacherEventsPage() {
           .filter((id): id is string => id !== null)
       );
       const totalFamilies = uniqueFamilyIds.size;
+      const totalStudents = studentsList.length;
+      const studentIds = studentsList.map((s) => s.id);
 
       const eventIds = eventsData.map((e) => e.id);
-      const { data: attendanceData } = await supabase
-        .from("family_attendance")
-        .select("event_id, family_id")
-        .in("event_id", eventIds)
-        .in("family_id", [...uniqueFamilyIds]);
+
+      const [familyAttRes, studentAttRes] = await Promise.all([
+        supabase
+          .from("family_attendance")
+          .select("event_id, family_id")
+          .in("event_id", eventIds)
+          .in("family_id", [...uniqueFamilyIds]),
+        supabase
+          .from("student_attendance")
+          .select("event_id, student_id")
+          .in("event_id", eventIds)
+          .in("student_id", studentIds),
+      ]);
 
       // Count unique families per event
-      const countByEvent = new Map<string, Set<string>>();
-      for (const record of attendanceData ?? []) {
-        if (!countByEvent.has(record.event_id)) {
-          countByEvent.set(record.event_id, new Set());
+      const familyCountByEvent = new Map<string, Set<string>>();
+      for (const record of familyAttRes.data ?? []) {
+        if (!familyCountByEvent.has(record.event_id)) {
+          familyCountByEvent.set(record.event_id, new Set());
         }
-        countByEvent.get(record.event_id)!.add(record.family_id);
+        familyCountByEvent.get(record.event_id)!.add(record.family_id);
+      }
+
+      // Count students per event
+      const studentCountByEvent = new Map<string, Set<string>>();
+      for (const record of studentAttRes.data ?? []) {
+        if (!studentCountByEvent.has(record.event_id)) {
+          studentCountByEvent.set(record.event_id, new Set());
+        }
+        studentCountByEvent.get(record.event_id)!.add(record.student_id);
       }
 
       const relevantEvents = eventsData.filter(
@@ -77,8 +98,10 @@ export default function TeacherEventsPage() {
 
       const eventsWithRates: EventWithRate[] = relevantEvents.map((event) => ({
         ...event,
-        checkedIn: countByEvent.get(event.id)?.size ?? 0,
+        checkedInFamilies: familyCountByEvent.get(event.id)?.size ?? 0,
         totalFamilies,
+        checkedInStudents: studentCountByEvent.get(event.id)?.size ?? 0,
+        totalStudents,
       }));
 
       setEvents(eventsWithRates);
@@ -124,10 +147,16 @@ export default function TeacherEventsPage() {
           {events.map((event) => {
             const isPast =
               event.date < new Date().toISOString().split("T")[0];
-            const rate =
+            const familyRate =
               event.totalFamilies > 0
                 ? Math.round(
-                    (event.checkedIn / event.totalFamilies) * 100
+                    (event.checkedInFamilies / event.totalFamilies) * 100
+                  )
+                : 0;
+            const studentRate =
+              event.totalStudents > 0
+                ? Math.round(
+                    (event.checkedInStudents / event.totalStudents) * 100
                   )
                 : 0;
 
@@ -164,17 +193,31 @@ export default function TeacherEventsPage() {
                   {event.track_family && event.totalFamilies > 0 && (
                     <div className="space-y-1">
                       <div className="flex items-center justify-between text-xs">
-                        <span className="text-muted-foreground">
-                          班级出席率
-                        </span>
+                        <span className="text-muted-foreground">家庭出席</span>
                         <span className="font-medium">
-                          {event.checkedIn}/{event.totalFamilies} ({rate}%)
+                          {event.checkedInFamilies}/{event.totalFamilies} ({familyRate}%)
                         </span>
                       </div>
                       <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
                         <div
                           className="h-full rounded-full bg-primary transition-all"
-                          style={{ width: `${rate}%` }}
+                          style={{ width: `${familyRate}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                  {event.track_student && event.totalStudents > 0 && (
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-muted-foreground">学生出席</span>
+                        <span className="font-medium">
+                          {event.checkedInStudents}/{event.totalStudents} ({studentRate}%)
+                        </span>
+                      </div>
+                      <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                        <div
+                          className="h-full rounded-full bg-primary transition-all"
+                          style={{ width: `${studentRate}%` }}
                         />
                       </div>
                     </div>
