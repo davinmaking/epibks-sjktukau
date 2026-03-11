@@ -79,7 +79,7 @@ export default function DashboardPage() {
     "T1 TEKUN": "oklch(0.65 0.20 250)",
     "T2 KREATIF": "oklch(0.60 0.18 285)",
     "T3 BERDIKARI": "oklch(0.68 0.14 195)",
-    "T4 BERJUANG": "oklch(0.65 0.18 30)",
+    "T4 BERJUANG": "oklch(0.70 0.16 55)",
     "T5 SABAR": "oklch(0.60 0.20 330)",
     "T6 BERJAYA": "oklch(0.55 0.15 170)",
   };
