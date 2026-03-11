@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { Pie, PieChart } from "recharts";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeAttendance } from "@/hooks/use-realtime-attendance";
 import { useAttendanceStats } from "@/hooks/use-attendance-stats";
-import { AttendanceStatsCard } from "@/components/attendance-stats-card";
 import { ClassProgressBar } from "@/components/class-progress-bar";
 import { CLASS_NAMES } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
@@ -15,18 +15,20 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  type ChartConfig,
+} from "@/components/ui/chart";
 import { Separator } from "@/components/ui/separator";
 import {
   Calendar,
-  Users,
-  UserCog,
-  BarChart3,
   Plus,
   ArrowRight,
   Loader2,
 } from "lucide-react";
 import type { Tables } from "@/lib/types";
-import { formatDate } from "@/lib/utils";
 
 type Event = Tables<"events">;
 
@@ -35,14 +37,6 @@ interface QuickStats {
   totalFamilies: number;
   totalTeachers: number;
   totalEvents: number;
-}
-
-interface RecentEventWithStats {
-  event: Event;
-  familyCheckedIn: number;
-  totalFamilies: number;
-  studentCheckedIn: number;
-  totalStudents: number;
 }
 
 export default function DashboardPage() {
@@ -56,7 +50,6 @@ export default function DashboardPage() {
     totalTeachers: 0,
     totalEvents: 0,
   });
-  const [recentEvents, setRecentEvents] = useState<RecentEventWithStats[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Realtime attendance for ongoing event
@@ -78,13 +71,42 @@ export default function DashboardPage() {
     students: includedStudents,
   });
 
+  // Pie chart data for family attendance
+  const familyPieData = useMemo(() => {
+    if (!ongoingEvent?.track_family) return null;
+    const checkedIn = overallStats.classLevelCheckedInFamilies;
+    const total = overallStats.classLevelTotalFamilies;
+    const notCheckedIn = total - checkedIn;
+    return [
+      { status: "checkedIn", count: checkedIn, fill: "var(--color-checkedIn)" },
+      { status: "notCheckedIn", count: notCheckedIn, fill: "var(--color-notCheckedIn)" },
+    ];
+  }, [ongoingEvent?.track_family, overallStats.classLevelCheckedInFamilies, overallStats.classLevelTotalFamilies]);
+
+  // Pie chart data for student attendance
+  const studentPieData = useMemo(() => {
+    if (!ongoingEvent?.track_student) return null;
+    const checkedIn = overallStats.checkedInStudents;
+    const total = overallStats.totalStudents;
+    const notCheckedIn = total - checkedIn;
+    return [
+      { status: "checkedIn", count: checkedIn, fill: "var(--color-checkedIn)" },
+      { status: "notCheckedIn", count: notCheckedIn, fill: "var(--color-notCheckedIn)" },
+    ];
+  }, [ongoingEvent?.track_student, overallStats.checkedInStudents, overallStats.totalStudents]);
+
+  const pieChartConfig = {
+    count: { label: "人数" },
+    checkedIn: { label: "已签到", color: "var(--chart-1)" },
+    notCheckedIn: { label: "未签到", color: "var(--chart-4)" },
+  } satisfies ChartConfig;
+
   useEffect(() => {
     let cancelled = false;
 
     async function fetchDashboardData() {
       const supabase = createClient();
 
-      // Fetch ongoing event, all students, and quick stats in parallel
       const [
         ongoingResult,
         studentsResult,
@@ -92,9 +114,7 @@ export default function DashboardPage() {
         familyCountResult,
         teacherCountResult,
         eventCountResult,
-        recentEventsResult,
       ] = await Promise.all([
-        // Latest event (by date, most recent first)
         supabase
           .from("events")
           .select("*")
@@ -102,107 +122,45 @@ export default function DashboardPage() {
           .order("date", { ascending: true })
           .limit(1)
           .maybeSingle(),
-        // All students (for stats computation)
         supabase
           .from("students")
           .select("id, class_name, family_id")
           .order("class_name"),
-        // Quick stats: total students
         supabase
           .from("students")
           .select("id", { count: "exact", head: true }),
-        // Quick stats: distinct families
         supabase
           .from("students")
           .select("family_id")
           .not("family_id", "is", null),
-        // Quick stats: total teachers
         supabase
           .from("teachers")
           .select("id", { count: "exact", head: true }),
-        // Quick stats: total events
         supabase
           .from("events")
           .select("id", { count: "exact", head: true }),
-        // Recent past events
-        supabase
-          .from("events")
-          .select("*")
-          .lt("date", new Date().toISOString().split("T")[0])
-          .order("date", { ascending: false })
-          .limit(3),
       ]);
 
       if (cancelled) return;
 
-      // Set ongoing event
       if (ongoingResult.data) {
         setOngoingEvent(ongoingResult.data);
       }
 
-      // Set students
       setStudents(studentsResult.data ?? []);
 
-      // Count distinct families
       const uniqueFamilyIds = new Set(
         (familyCountResult.data ?? [])
           .map((r) => r.family_id)
           .filter(Boolean)
       );
 
-      // Set quick stats
       setQuickStats({
         totalStudents: studentCountResult.count ?? 0,
         totalFamilies: uniqueFamilyIds.size,
         totalTeachers: teacherCountResult.count ?? 0,
         totalEvents: eventCountResult.count ?? 0,
       });
-
-      // Fetch attendance stats for recent events
-      const recentEventsData = recentEventsResult.data ?? [];
-      if (recentEventsData.length > 0) {
-        const eventIds = recentEventsData.map((e) => e.id);
-
-        const [familyAttResult, studentAttResult] = await Promise.all([
-          supabase
-            .from("family_attendance")
-            .select("event_id, family_id")
-            .in("event_id", eventIds),
-          supabase
-            .from("student_attendance")
-            .select("event_id, student_id")
-            .in("event_id", eventIds),
-        ]);
-
-        // Count per event
-        const familyAttByEvent = new Map<string, Set<string>>();
-        for (const fa of familyAttResult.data ?? []) {
-          if (!familyAttByEvent.has(fa.event_id)) {
-            familyAttByEvent.set(fa.event_id, new Set());
-          }
-          familyAttByEvent.get(fa.event_id)!.add(fa.family_id);
-        }
-
-        const studentAttByEvent = new Map<string, Set<string>>();
-        for (const sa of studentAttResult.data ?? []) {
-          if (!studentAttByEvent.has(sa.event_id)) {
-            studentAttByEvent.set(sa.event_id, new Set());
-          }
-          studentAttByEvent.get(sa.event_id)!.add(sa.student_id);
-        }
-
-        const recentWithStats: RecentEventWithStats[] = recentEventsData.map(
-          (event) => ({
-            event,
-            familyCheckedIn: familyAttByEvent.get(event.id)?.size ?? 0,
-            totalFamilies: uniqueFamilyIds.size,
-            studentCheckedIn: studentAttByEvent.get(event.id)?.size ?? 0,
-            totalStudents: studentCountResult.count ?? 0,
-          })
-        );
-
-        setRecentEvents(recentWithStats);
-      }
 
       setLoading(false);
     }
@@ -232,7 +190,62 @@ export default function DashboardPage() {
         </p>
       </div>
 
-      {/* Section 1: Active Event */}
+      {/* Section 1: Quick Stats */}
+      <section className="space-y-4">
+        <h2 className="text-lg font-semibold">数据概览</h2>
+        <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+          <Card>
+            <CardHeader className="pb-1">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                学生总数
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <span className="text-2xl font-bold">
+                {quickStats.totalStudents}
+              </span>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-1">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                家庭总数
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <span className="text-2xl font-bold">
+                {quickStats.totalFamilies}
+              </span>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-1">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                教师总数
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <span className="text-2xl font-bold">
+                {quickStats.totalTeachers}
+              </span>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-1">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                活动总数
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <span className="text-2xl font-bold">
+                {quickStats.totalEvents}
+              </span>
+            </CardContent>
+          </Card>
+        </div>
+      </section>
+
+      {/* Section 2: Active Event */}
       <section className="space-y-4">
         <h2 className="text-lg font-semibold">当前活动</h2>
 
@@ -250,23 +263,59 @@ export default function DashboardPage() {
                 </div>
               ) : (
                 <>
-                  {/* Overall stats */}
+                  {/* Pie charts */}
                   <div className="grid gap-4 sm:grid-cols-2">
-                    {ongoingEvent.track_family && (
-                      <AttendanceStatsCard
-                        title="总出席率"
-                        value={`${overallStats.classLevelCheckedInFamilies}/${overallStats.classLevelTotalFamilies}`}
-                        percentage={Math.round(overallStats.classLevelFamilyRate * 100)}
-                        description="按班级累计（含兄弟姐妹重复计算）"
-                      />
+                    {ongoingEvent.track_family && familyPieData && (
+                      <Card>
+                        <CardHeader className="items-center pb-0">
+                          <CardTitle className="text-sm">总出席率</CardTitle>
+                        </CardHeader>
+                        <CardContent className="flex-1 pb-0">
+                          <ChartContainer
+                            config={pieChartConfig}
+                            className="mx-auto aspect-square max-h-[200px] pb-0 [&_.recharts-pie-label-text]:fill-foreground"
+                          >
+                            <PieChart>
+                              <ChartTooltip content={<ChartTooltipContent hideLabel />} />
+                              <Pie data={familyPieData} dataKey="count" label nameKey="status" />
+                            </PieChart>
+                          </ChartContainer>
+                        </CardContent>
+                        <div className="p-4 pt-2 text-center">
+                          <p className="text-2xl font-bold">
+                            {Math.round(overallStats.classLevelFamilyRate * 100)}%
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {overallStats.classLevelCheckedInFamilies}/{overallStats.classLevelTotalFamilies} 按班级累计
+                          </p>
+                        </div>
+                      </Card>
                     )}
-                    {ongoingEvent.track_student && (
-                      <AttendanceStatsCard
-                        title="学生出席率"
-                        value={`${overallStats.checkedInStudents}/${overallStats.totalStudents}`}
-                        percentage={Math.round(overallStats.studentRate * 100)}
-                        description="已签到学生 / 总学生数"
-                      />
+                    {ongoingEvent.track_student && studentPieData && (
+                      <Card>
+                        <CardHeader className="items-center pb-0">
+                          <CardTitle className="text-sm">学生出席率</CardTitle>
+                        </CardHeader>
+                        <CardContent className="flex-1 pb-0">
+                          <ChartContainer
+                            config={pieChartConfig}
+                            className="mx-auto aspect-square max-h-[200px] pb-0 [&_.recharts-pie-label-text]:fill-foreground"
+                          >
+                            <PieChart>
+                              <ChartTooltip content={<ChartTooltipContent hideLabel />} />
+                              <Pie data={studentPieData} dataKey="count" label nameKey="status" />
+                            </PieChart>
+                          </ChartContainer>
+                        </CardContent>
+                        <div className="p-4 pt-2 text-center">
+                          <p className="text-2xl font-bold">
+                            {Math.round(overallStats.studentRate * 100)}%
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {overallStats.checkedInStudents}/{overallStats.totalStudents} 已签到学生
+                          </p>
+                        </div>
+                      </Card>
                     )}
                   </div>
 
@@ -334,185 +383,6 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
         )}
-      </section>
-
-      {/* Section 2: Quick Stats */}
-      <section className="space-y-4">
-        <h2 className="text-lg font-semibold">数据概览</h2>
-        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-          <Card>
-            <CardHeader className="pb-1">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                学生总数
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <span className="text-2xl font-bold">
-                {quickStats.totalStudents}
-              </span>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-1">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                家庭总数
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <span className="text-2xl font-bold">
-                {quickStats.totalFamilies}
-              </span>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-1">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                教师总数
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <span className="text-2xl font-bold">
-                {quickStats.totalTeachers}
-              </span>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-1">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                活动总数
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <span className="text-2xl font-bold">
-                {quickStats.totalEvents}
-              </span>
-            </CardContent>
-          </Card>
-        </div>
-      </section>
-
-      {/* Section 3: Recent Events */}
-      <section className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">最近活动</h2>
-          <Button
-            variant="ghost"
-            size="sm"
-            render={<Link href="/events" />}
-          >
-            查看全部
-            <ArrowRight className="size-4" data-icon="inline-end" />
-          </Button>
-        </div>
-
-        {recentEvents.length === 0 ? (
-          <Card>
-            <CardContent className="flex flex-col items-center gap-2 py-8">
-              <Calendar className="size-10 text-muted-foreground" />
-              <p className="text-muted-foreground">暂无已完成的活动</p>
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {recentEvents.map(
-              ({
-                event,
-                familyCheckedIn,
-                totalFamilies,
-                studentCheckedIn,
-                totalStudents,
-              }) => {
-                const familyRate =
-                  totalFamilies > 0
-                    ? Math.round((familyCheckedIn / totalFamilies) * 100)
-                    : 0;
-                const studentRate =
-                  totalStudents > 0
-                    ? Math.round((studentCheckedIn / totalStudents) * 100)
-                    : 0;
-
-                return (
-                  <Card
-                    key={event.id}
-                    className="cursor-pointer transition-shadow hover:shadow-md"
-                  >
-                    <Link href={`/events/${event.id}`} className="block">
-                      <CardHeader className="pb-2">
-                        <CardTitle className="line-clamp-2 text-base">
-                          {event.name}
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-3">
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <Calendar className="size-4 shrink-0" />
-                          <span>{formatDate(event.date)}</span>
-                        </div>
-                        <div className="flex flex-wrap gap-3 text-sm">
-                          {event.track_family && (
-                            <div className="flex items-center gap-1.5">
-                              <Users className="size-3.5 text-muted-foreground" />
-                              <span>
-                                家庭 {familyCheckedIn}/{totalFamilies}
-                              </span>
-                              <span className="text-muted-foreground">
-                                ({familyRate}%)
-                              </span>
-                            </div>
-                          )}
-                          {event.track_student && (
-                            <div className="flex items-center gap-1.5">
-                              <BarChart3 className="size-3.5 text-muted-foreground" />
-                              <span>
-                                学生 {studentCheckedIn}/{totalStudents}
-                              </span>
-                              <span className="text-muted-foreground">
-                                ({studentRate}%)
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                      </CardContent>
-                    </Link>
-                  </Card>
-                );
-              }
-            )}
-          </div>
-        )}
-      </section>
-
-      {/* Section 4: Quick Actions */}
-      <section className="space-y-4">
-        <h2 className="text-lg font-semibold">快捷操作</h2>
-        <Card>
-          <CardContent className="grid gap-3 py-4 grid-cols-2 lg:grid-cols-4">
-            <Button render={<Link href="/events/new" />}>
-              <Plus className="size-4" data-icon="inline-start" />
-              创建活动
-            </Button>
-            <Button
-              variant="outline"
-              render={<Link href="/events" />}
-            >
-              <BarChart3 className="size-4" data-icon="inline-start" />
-              活动管理
-            </Button>
-            <Button
-              variant="outline"
-              render={<Link href="/students" />}
-            >
-              <Users className="size-4" data-icon="inline-start" />
-              管理学生
-            </Button>
-            <Button
-              variant="outline"
-              render={<Link href="/users" />}
-            >
-              <UserCog className="size-4" data-icon="inline-start" />
-              管理用户
-            </Button>
-          </CardContent>
-        </Card>
       </section>
     </div>
   );
