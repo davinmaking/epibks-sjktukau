@@ -769,25 +769,25 @@ export default function EventDetailPage() {
                         </p>
                       ) : (
                         <div className="overflow-x-auto rounded-lg border">
-                          <table className="w-full table-fixed text-xs">
+                          <table className="w-full text-xs">
                             <thead>
                               <tr className="border-b bg-muted/50">
-                                <th className="w-[40px] px-3 py-2 text-left font-medium">
+                                <th className="whitespace-nowrap px-3 py-2 text-left font-medium">
                                   #
                                 </th>
-                                <th className="w-[22%] px-3 py-2 text-left font-medium">
+                                <th className="whitespace-nowrap px-3 py-2 text-left font-medium">
                                   学生
                                 </th>
-                                <th className="w-[25%] px-3 py-2 text-left font-medium">
+                                <th className="whitespace-nowrap px-3 py-2 text-left font-medium">
                                   出席者姓名
                                 </th>
-                                <th className="w-[20%] px-3 py-2 text-left font-medium">
+                                <th className="whitespace-nowrap px-3 py-2 text-left font-medium">
                                   身份证号码
                                 </th>
-                                <th className="w-[13%] px-3 py-2 text-left font-medium">
+                                <th className="whitespace-nowrap px-3 py-2 text-left font-medium">
                                   关系
                                 </th>
-                                <th className="w-[13%] px-3 py-2 text-left font-medium">
+                                <th className="whitespace-nowrap px-3 py-2 text-left font-medium">
                                   签到来源
                                 </th>
                               </tr>
@@ -824,24 +824,24 @@ export default function EventDetailPage() {
                                           key={`${record.id}-${i}`}
                                           className="border-b"
                                         >
-                                          <td className="px-3 py-2 text-muted-foreground">
+                                          <td className="whitespace-nowrap px-3 py-2 text-muted-foreground">
                                             {rowNum}
                                           </td>
-                                          <td className="truncate px-3 py-2" title={i === 0 ? children : ""}>
+                                          <td className="whitespace-nowrap px-3 py-2">
                                             {i === 0 ? children : ""}
                                           </td>
-                                          <td className="truncate px-3 py-2 font-medium" title={att.name || "-"}>
+                                          <td className="whitespace-nowrap px-3 py-2 font-medium">
                                             {att.name || "-"}
                                           </td>
-                                          <td className="truncate px-3 py-2 font-mono">
+                                          <td className="whitespace-nowrap px-3 py-2 font-mono">
                                             {att.ic || "-"}
                                           </td>
-                                          <td className="truncate px-3 py-2">
+                                          <td className="whitespace-nowrap px-3 py-2">
                                             {att.relationship ||
                                               att.type ||
                                               "-"}
                                           </td>
-                                          <td className="truncate px-3 py-2">
+                                          <td className="whitespace-nowrap px-3 py-2">
                                             {isSibling ? (
                                               <span className="text-chart-2">
                                                 {source}
@@ -861,24 +861,24 @@ export default function EventDetailPage() {
                                       key={record.id}
                                       className="border-b"
                                     >
-                                      <td className="px-3 py-2 text-muted-foreground">
+                                      <td className="whitespace-nowrap px-3 py-2 text-muted-foreground">
                                         {rowNum}
                                       </td>
-                                      <td className="truncate px-3 py-2" title={children}>
+                                      <td className="whitespace-nowrap px-3 py-2">
                                         {children}
                                       </td>
-                                      <td className="truncate px-3 py-2 font-medium" title={record.attendee_name || "-"}>
+                                      <td className="whitespace-nowrap px-3 py-2 font-medium">
                                         {record.attendee_name || "-"}
                                       </td>
-                                      <td className="truncate px-3 py-2 font-mono">
+                                      <td className="whitespace-nowrap px-3 py-2 font-mono">
                                         {record.attendee_ic || "-"}
                                       </td>
-                                      <td className="truncate px-3 py-2">
+                                      <td className="whitespace-nowrap px-3 py-2">
                                         {record.attendee_relationship ||
                                           record.attendee_type ||
                                           "-"}
                                       </td>
-                                      <td className="truncate px-3 py-2">
+                                      <td className="whitespace-nowrap px-3 py-2">
                                         {isSibling ? (
                                           <span className="text-chart-2">
                                             {source}

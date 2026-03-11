@@ -689,31 +689,46 @@ export default function TeacherCheckInPage() {
                 {checkedInFamilies === 0 ? (
                   <p className="text-xs text-muted-foreground">暂无签到记录</p>
                 ) : (
-                  <div className="space-y-2">
-                    {familyGroups
-                      .filter(({ family }) => familyAttendanceMap.has(family.id))
-                      .map(({ family, students: children }) => {
-                        const record = familyAttendance.find((fa) => fa.family_id === family.id);
-                        if (!record) return null;
-                        const childNames = children.map((c) => c.name).join("、");
-                        const attendees = (record.attendees as unknown as AttendeeEntry[]) ?? [];
-                        const entries = attendees.length > 0
-                          ? attendees
-                          : [{ name: record.attendee_name || "-", ic: record.attendee_ic || "-", relationship: record.attendee_relationship || record.attendee_type || "-", type: record.attendee_type || "-" }];
+                  <div className="overflow-x-auto rounded-lg border">
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="border-b bg-muted/50">
+                          <th className="whitespace-nowrap px-3 py-2 text-left font-medium">学生</th>
+                          <th className="whitespace-nowrap px-3 py-2 text-left font-medium">出席者</th>
+                          <th className="whitespace-nowrap px-3 py-2 text-left font-medium">身份证号</th>
+                          <th className="whitespace-nowrap px-3 py-2 text-left font-medium">关系</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {familyGroups
+                          .filter(({ family }) => familyAttendanceMap.has(family.id))
+                          .flatMap(({ family, students: children }) => {
+                            const record = familyAttendance.find((fa) => fa.family_id === family.id);
+                            if (!record) return [];
+                            const childNames = children.map((c) => c.name).join("、");
+                            const attendees = (record.attendees as unknown as AttendeeEntry[]) ?? [];
 
-                        return (
-                          <div key={family.id} className="rounded-lg border p-3 text-sm">
-                            <p className="mb-1.5 font-medium">{childNames}</p>
-                            {entries.map((att, i) => (
-                              <div key={i} className="flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-muted-foreground">
-                                <span className="font-medium text-foreground">{att.name || "-"}</span>
-                                <span className="font-mono">{att.ic || "-"}</span>
-                                <span>{att.relationship || att.type || "-"}</span>
-                              </div>
-                            ))}
-                          </div>
-                        );
-                      })}
+                            if (attendees.length > 0) {
+                              return attendees.map((att, i) => (
+                                <tr key={`${family.id}-${i}`} className="border-b">
+                                  <td className="whitespace-nowrap px-3 py-2">{i === 0 ? childNames : ""}</td>
+                                  <td className="whitespace-nowrap px-3 py-2 font-medium">{att.name || "-"}</td>
+                                  <td className="whitespace-nowrap px-3 py-2 font-mono">{att.ic || "-"}</td>
+                                  <td className="whitespace-nowrap px-3 py-2">{att.relationship || att.type || "-"}</td>
+                                </tr>
+                              ));
+                            }
+                            return [(
+                              <tr key={family.id} className="border-b">
+                                <td className="whitespace-nowrap px-3 py-2">{childNames}</td>
+                                <td className="whitespace-nowrap px-3 py-2 font-medium">{record.attendee_name || "-"}</td>
+                                <td className="whitespace-nowrap px-3 py-2 font-mono">{record.attendee_ic || "-"}</td>
+                                <td className="whitespace-nowrap px-3 py-2">{record.attendee_relationship || record.attendee_type || "-"}</td>
+                              </tr>
+                            )];
+                          })}
+                      </tbody>
+                    </table>
                   </div>
                 )}
               </div>
