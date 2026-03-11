@@ -685,9 +685,9 @@ export default function TeacherCheckInPage() {
           {event.track_family && (
             <div className="space-y-4">
               <div>
-                <h3 className="text-base font-semibold">出席详情</h3>
+                <h3 className="text-base font-semibold">家庭出席详情</h3>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  各班出席家长/监护人详情，含学生姓名
+                  出席家长/监护人详情，含学生姓名
                 </p>
               </div>
               {/* Attended */}
@@ -776,7 +776,7 @@ export default function TeacherCheckInPage() {
               <div className="mb-4">
                 <h3 className="text-base font-semibold">学生出席详情</h3>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  各班学生出席/缺席名单
+                  学生出席/缺席名单
                 </p>
               </div>
               <div className="overflow-x-auto rounded-lg border">
