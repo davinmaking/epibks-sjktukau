@@ -674,10 +674,7 @@ export default function TeacherCheckInPage() {
 
         {/* Tab 2: Attendance Detail */}
         <TabsContent value="detail" className="space-y-6">
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-muted-foreground">
-              {teacher.class_name} 班出席详情
-            </p>
+          <div className="flex items-center justify-end">
             <Button size="sm" onClick={handleExportCSV}>
               <FileDown className="size-4" />
               导出 CSV
@@ -687,6 +684,12 @@ export default function TeacherCheckInPage() {
           {/* Family attendance detail */}
           {event.track_family && (
             <div className="space-y-4">
+              <div>
+                <h3 className="text-base font-semibold">出席详情</h3>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  各班出席家长/监护人详情，含学生姓名
+                </p>
+              </div>
               {/* Attended */}
               <div>
                 <h3 className="mb-2 text-sm font-semibold text-success">
@@ -770,9 +773,12 @@ export default function TeacherCheckInPage() {
             <div>
               {event.track_family && <hr className="mb-4 border-muted" />}
 
-              <h3 className="mb-2 text-sm font-semibold">
-                学生出席 ({totalStudents > 0 ? Math.round((checkedInStudents / totalStudents) * 100) : 0}% · {checkedInStudents}/{totalStudents})
-              </h3>
+              <div className="mb-4">
+                <h3 className="text-base font-semibold">学生出席详情</h3>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  各班学生出席/缺席名单
+                </p>
+              </div>
               <div className="overflow-x-auto rounded-lg border">
                 <table className="w-full text-xs">
                   <thead>

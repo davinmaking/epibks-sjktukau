@@ -716,8 +716,7 @@ export default function EventDetailPage() {
 
           {/* Tab 3: Detailed Attendance */}
           <TabsContent value="detail" className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold">出席详情</h2>
+            <div className="flex items-center justify-end">
               <Button size="sm" onClick={handleExportDetailCSV}>
                 <FileDown className="size-4" />
                 导出 CSV
@@ -732,9 +731,12 @@ export default function EventDetailPage() {
                 {/* Family attendance detail */}
                 {showFamily && (
                   <div className="space-y-6">
-                    <p className="text-sm text-muted-foreground">
-                      各班出席家长/监护人详情，含学生姓名
-                    </p>
+                    <div>
+                      <h3 className="text-base font-semibold">出席详情</h3>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        各班出席家长/监护人详情，含学生姓名
+                      </p>
+                    </div>
                     {includedClassNames.map((className) => {
                       const classStudents = includedStudents.filter(
                         (s) => s.class_name === className
